@@ -1,0 +1,25 @@
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import { env } from './config/env.js';
+import routes from './routes/index.js';
+import { globalLimiter } from './middleware/rateLimiters.js';
+import { noSqlSanitize } from './middleware/noSqlSanitize.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { avatarUploadDirectory, productUploadDirectory } from './config/uploads.js';
+
+const origins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
+export const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use(helmet());
+app.use(cors({ origin: origins, credentials: true }));
+app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+app.use(noSqlSanitize);
+app.use(globalLimiter);
+app.get('/health', (_req, res) => res.json({ success: true, data: { status: 'ok' } }));
+app.use('/uploads/avatars', express.static(avatarUploadDirectory, { fallthrough: false, maxAge: env.NODE_ENV === 'production' ? '1d' : 0 }));
+app.use('/uploads/products', express.static(productUploadDirectory, { fallthrough: false, maxAge: env.NODE_ENV === 'production' ? '1d' : 0 }));
+app.use('/api/v1', routes);
+app.use(notFound);
+app.use(errorHandler);

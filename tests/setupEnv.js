@@ -1,0 +1,12 @@
+process.env.NODE_ENV = 'test';
+process.env.MONGODB_URI = 'mongodb://127.0.0.1:27017/daterra-test';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret-with-at-least-32-characters';
+process.env.JWT_ACCESS_EXPIRES_IN = '15m';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-with-at-least-32-characters';
+process.env.JWT_REFRESH_EXPIRES_IN = '30d';
+process.env.CORS_ORIGIN = 'http://localhost:8081';
+process.env.GLOBAL_RATE_LIMIT_MAX = '10000';
+process.env.AUTH_RATE_LIMIT_MAX = '10000';
+process.env.FORGOT_PASSWORD_RATE_LIMIT_MAX = '10000';
+process.env.EMAIL_OTP_SECRET = 'test-otp-secret-with-at-least-32-characters';
+process.env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS = '1';
