@@ -184,3 +184,77 @@ describe('produtos', () => {
     expect((await request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`).send(product)).status).toBe(403);
   });
 });
+
+describe('chat entre utilizadores', () => {
+  let buyerAuth, sellerAuth, outsiderAuth, productId;
+  const headers = (auth) => ({ Authorization: `Bearer ${auth.accessToken}` });
+  const open = () => request(app).post('/api/v1/conversations').set(headers(buyerAuth)).send({ productId });
+  const send = (id, auth, text, clientId = 'message-test-001') => request(app).post(`/api/v1/conversations/${id}/messages`).set(headers(auth)).send({ text, clientId });
+  beforeEach(async () => {
+    await register();
+    await register({ email: 'seller@email.pt', phone: '913345678', roles: ['seller'] });
+    await register({ email: 'outsider@email.pt', phone: '914345678' });
+    await User.updateMany({}, { emailVerified: true });
+    buyerAuth = (await login()).body.data;
+    sellerAuth = (await login({ email: 'seller@email.pt' })).body.data;
+    outsiderAuth = (await login({ email: 'outsider@email.pt' })).body.data;
+    const product = await request(app).post('/api/v1/products').set(headers(sellerAuth)).send({ title: 'Tomates', description: 'Tomates frescos da horta.', price: 2, unit: '€/kg', category: 'Legumes', location: 'Mirandela' });
+    expect(product.status).toBe(201);
+    productId = product.body.data.id;
+  });
+  it('reutiliza a conversa, envia nos dois sentidos e mantém contadores separados', async () => {
+    const openings = await Promise.all([open(), open()]);
+    const id = openings[0].body.data.id;
+    expect(openings[1].body.data.id).toBe(id);
+    expect((await open()).body.data.id).toBe(id);
+    const first = await send(id, buyerAuth, 'Bom dia!');
+    expect(first.status).toBe(200);
+    expect(first.body.data.senderId).toBe(buyerAuth.user.id);
+    const second = await send(id, sellerAuth, 'Olá, tenho disponível.');
+    expect(second.status).toBe(200);
+    const sellerList = (await request(app).get('/api/v1/conversations').set(headers(sellerAuth))).body.data;
+    expect(sellerList.unreadTotal).toBe(1);
+    expect(sellerList.items[0]).toMatchObject({ unreadCount: 1, lastMessage: 'Olá, tenho disponível.', participant: { id: buyerAuth.user.id } });
+    const read = await request(app).patch(`/api/v1/conversations/${id}/read`).set(headers(sellerAuth)).send({ messageIds: [first.body.data.id] });
+    expect(read.status).toBe(200);
+    expect((await request(app).get('/api/v1/conversations').set(headers(sellerAuth))).body.data.unreadTotal).toBe(0);
+    expect((await request(app).get('/api/v1/conversations').set(headers(buyerAuth))).body.data.unreadTotal).toBe(1);
+    const history = await request(app).get(`/api/v1/conversations/${id}/messages`).set(headers(buyerAuth));
+    expect(history.body.data.items.map((item) => item.text)).toEqual(['Bom dia!', 'Olá, tenho disponível.']);
+  });
+  it('não duplica envios repetidos e não marca chegadas posteriores como lidas', async () => {
+    const id = (await open()).body.data.id;
+    const first = (await send(id, buyerAuth, 'Primeira')).body.data;
+    const retries = await Promise.all([send(id, buyerAuth, 'Primeira'), send(id, buyerAuth, 'Primeira')]);
+    expect(retries.map((reply) => reply.body.data.id)).toEqual([first.id, first.id]);
+    expect((await send(id, buyerAuth, 'Texto diferente')).status).toBe(409);
+    await send(id, buyerAuth, 'Segunda', 'message-test-002');
+    await request(app).patch(`/api/v1/conversations/${id}/read`).set(headers(sellerAuth)).send({ messageIds: [first.id] });
+    expect((await request(app).get('/api/v1/conversations').set(headers(sellerAuth))).body.data.unreadTotal).toBe(1);
+    expect((await request(app).get(`/api/v1/conversations/${id}/messages`).set(headers(sellerAuth))).body.data.items).toHaveLength(2);
+  });
+  it('bloqueia terceiros, conversas consigo próprio e pedidos inválidos', async () => {
+    const id = (await open()).body.data.id;
+    expect((await request(app).get('/api/v1/conversations')).status).toBe(401);
+    expect((await request(app).get('/api/v1/conversations').set(headers(outsiderAuth))).body.data.items).toEqual([]);
+    expect((await request(app).get(`/api/v1/conversations/${id}/messages`).set(headers(outsiderAuth))).status).toBe(404);
+    expect((await send(id, outsiderAuth, 'Intruso')).status).toBe(404);
+    const sent = (await send(id, buyerAuth, 'Olá')).body.data;
+    expect((await request(app).patch(`/api/v1/conversations/${id}/read`).set(headers(outsiderAuth)).send({ messageIds: [sent.id] })).status).toBe(404);
+    expect((await request(app).post('/api/v1/conversations').set(headers(sellerAuth)).send({ productId })).status).toBe(422);
+    expect((await send(id, buyerAuth, '   ')).status).toBe(422);
+    expect((await send(id, buyerAuth, 'a'.repeat(2001))).status).toBe(422);
+    expect((await request(app).get('/api/v1/conversations/invalid/messages').set(headers(buyerAuth))).status).toBe(422);
+  });
+  it('pagina o histórico sem repetir mensagens e mantém a ordem', async () => {
+    const id = (await open()).body.data.id;
+    for (let index = 0; index < 5; index++) await send(id, buyerAuth, `Mensagem ${index}`, `pagination-${index}`);
+    const page1 = (await request(app).get(`/api/v1/conversations/${id}/messages?limit=2`).set(headers(sellerAuth))).body.data;
+    expect(page1.items.map((item) => item.text)).toEqual(['Mensagem 3', 'Mensagem 4']);
+    const page2 = (await request(app).get(`/api/v1/conversations/${id}/messages?limit=2&before=${page1.nextCursor}`).set(headers(sellerAuth))).body.data;
+    expect(page2.items.map((item) => item.text)).toEqual(['Mensagem 1', 'Mensagem 2']);
+    const page3 = (await request(app).get(`/api/v1/conversations/${id}/messages?limit=2&before=${page2.nextCursor}`).set(headers(sellerAuth))).body.data;
+    expect(page3.items.map((item) => item.text)).toEqual(['Mensagem 0']);
+    expect(page3.nextCursor).toBeNull();
+  });
+});

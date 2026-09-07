@@ -1,0 +1,23 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
+import { authenticate } from '../middleware/authenticate.js';
+import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { chatService } from '../services/chatService.js';
+
+const router = Router();
+const id = z.string().regex(/^[0-9a-fA-F]{24}$/);
+const params = z.object({ id });
+const limit = z.coerce.number().int().min(1).max(100).default(50);
+const action = (handler) => asyncHandler(async (req, res) => res.json({ success: true, data: await handler(req) }));
+const rateLimitMessage = { success: false, error: { code: 'CHAT_RATE_LIMIT', message: 'Demasiados pedidos ao chat. Aguarda um momento.' } };
+router.use(rateLimit({ windowMs: 900000, limit: 2000, standardHeaders: 'draft-8', legacyHeaders: false, message: rateLimitMessage }));
+router.use(authenticate);
+router.use(rateLimit({ windowMs: 60000, limit: 120, keyGenerator: (req) => req.user.id, standardHeaders: 'draft-8', legacyHeaders: false, message: rateLimitMessage }));
+router.get('/', validate(z.object({ query: z.object({ page: z.coerce.number().int().min(1).max(10000).default(1), limit }) })), action((req) => chatService.list(req.user.id, req.validated.query.page, req.validated.query.limit)));
+router.post('/', validate(z.object({ body: z.object({ productId: id }) })), action((req) => chatService.open(req.user.id, req.body.productId)));
+router.get('/:id/messages', validate(z.object({ params, query: z.object({ before: id.optional(), limit }) })), action((req) => chatService.messages(req.user.id, req.params.id, req.validated.query)));
+router.post('/:id/messages', rateLimit({ windowMs: 60000, limit: 60, keyGenerator: (req) => req.user.id, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, error: { code: 'CHAT_RATE_LIMIT', message: 'Estás a enviar demasiado depressa. Aguarda um momento.' } } }), validate(z.object({ params, body: z.object({ text: z.string().trim().min(1).max(2000), clientId: z.string().min(8).max(100).regex(/^[a-zA-Z0-9_-]+$/) }) })), action((req) => chatService.send(req.user.id, req.params.id, req.body)));
+router.patch('/:id/read', validate(z.object({ params, body: z.object({ messageIds: z.array(id).min(1).max(100) }) })), action((req) => chatService.read(req.user.id, req.params.id, req.body.messageIds)));
+export default router;

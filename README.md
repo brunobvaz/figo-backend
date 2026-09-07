@@ -157,3 +157,21 @@ Exemplo de erro:
 - Imagens de produtos são guardadas em `uploads/products/` com nomes UUID; MongoDB guarda apenas `imageFilename`.
 
 Em clientes móveis, guarda access e refresh tokens em armazenamento seguro do sistema operativo, nunca em AsyncStorage.
+
+## Chat entre compradores e vendedores
+
+O chat usa as coleções `conversations` e `messages` na mesma base MongoDB. Os modelos criam índices únicos para a conversa por produto/comprador/vendedor e para cada identificador de envio por autor/conversa. Não requer serviços externos nem novas variáveis de ambiente. O utilizador tem de estar autenticado e pertencer à conversa em todas as operações.
+
+Todos os caminhos abaixo têm o prefixo `/api/v1`:
+
+| Método | Caminho | Dados |
+|---|---|---|
+| POST | `/conversations` | `{ productId }`: cria ou reutiliza a conversa; o vendedor é obtido do produto |
+| GET | `/conversations?page=1&limit=50` | Conversas ordenadas pela última mensagem, outro participante, não lidas por conversa e `unreadTotal` de todas as páginas |
+| GET | `/conversations/:id/messages?limit=50&before=...` | Histórico em ordem cronológica; `nextCursor` permite obter a página anterior |
+| POST | `/conversations/:id/messages` | `{ text, clientId }`: texto com 1–2000 caracteres; reutilizar `clientId` ao repetir um envio |
+| PATCH | `/conversations/:id/read` | `{ messageIds: [...] }`: até 100 mensagens apresentadas; apenas mensagens recebidas pelo utilizador são marcadas |
+
+O chat tem limites próprios: 2000 pedidos por IP em 15 minutos, 120 pedidos por utilizador por minuto e 60 envios por minuto. Não consome o limite geral destinado às restantes rotas. Contadores são derivados de mensagens persistidas, e marcar um lote como lido não marca mensagens que chegam depois. A lista de conversas contém o título do produto no momento em que a conversa foi criada.
+
+Validação: `npm test` inclui envio bidirecional, isolamento de terceiros, leitura, paginação, reenvios idempotentes e junção de mensagens no cliente. Nesta fase não há push nem WebSocket.
