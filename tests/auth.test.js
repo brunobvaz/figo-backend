@@ -83,6 +83,21 @@ describe('middleware authenticate', () => {
 });
 
 describe('fotografia de perfil', () => {
+  it('rejeita um avatar vazio sem substituir a fotografia anterior', async () => {
+    await register();
+    await verifyUserInDatabase();
+    await User.updateOne({}, { avatarFilename: 'anterior.jpg' });
+    const auth = (await login()).body.data;
+    const directory = path.join(process.cwd(), 'uploads', 'avatars');
+    const before = await fs.readdir(directory);
+    const response = await request(app).post('/api/v1/users/me/avatar')
+      .set('Authorization', `Bearer ${auth.accessToken}`)
+      .attach('avatar', Buffer.alloc(0), { filename: 'vazia.jpg', contentType: 'image/jpeg' });
+    expect(response.status).toBe(422);
+    expect(response.body.error.code).toBe('EMPTY_AVATAR');
+    expect((await User.findOne()).avatarFilename).toBe('anterior.jpg');
+    expect(await fs.readdir(directory)).toEqual(before);
+  });
   it('carrega uma imagem e guarda apenas o nome do ficheiro', async () => {
     await register();
     await verifyUserInDatabase();
@@ -128,6 +143,17 @@ describe('password reset', () => {
 
 describe('produtos', () => {
   const product = { title: 'Tomate coração de boi', description: 'Tomate fresco colhido esta manhã.', price: 2.6, unit: '€/kg', category: 'Legumes', location: 'Mirandela', image: 'https://example.com/tomate.jpg' };
+  it('rejeita uma imagem de produto vazia', async () => {
+    await register({ roles: ['seller'] });
+    await verifyUserInDatabase();
+    const auth = (await login()).body.data;
+    let upload = request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`);
+    Object.entries(product).filter(([key]) => key !== 'image').forEach(([key, value]) => { upload = upload.field(key, String(value)); });
+    const response = await upload.attach('image', Buffer.alloc(0), { filename: 'vazia.jpg', contentType: 'image/jpeg' });
+    expect(response.status).toBe(422);
+    expect(response.body.error.code).toBe('EMPTY_PRODUCT_IMAGE');
+    expect((await request(app).get('/api/v1/products')).body.data.items).toEqual([]);
+  });
 
   it('permite ao vendedor criar, editar, listar e remover um produto', async () => {
     await register({ roles: ['seller'] });

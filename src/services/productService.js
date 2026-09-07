@@ -10,6 +10,7 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const extensions = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
 async function saveImage(file) {
   if (!file) return null;
+  if (!file.buffer?.length) throw new AppError(422, 'EMPTY_PRODUCT_IMAGE', 'A imagem recebida está vazia. Seleciona-a novamente.');
   await fs.mkdir(productUploadDirectory, { recursive: true });
   const filename = `${crypto.randomUUID()}${extensions[file.mimetype]}`;
   await fs.writeFile(path.join(productUploadDirectory, filename), file.buffer);
