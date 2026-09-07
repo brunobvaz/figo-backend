@@ -13,6 +13,12 @@ async function requireMember(id, userId) {
 }
 
 export const chatService = {
+  async detail(userId, id) {
+    const conversation = await requireMember(id, userId);
+    await conversation.populate({ path: 'buyer seller', select: 'name avatarFilename' });
+    const other = String(conversation.buyer?._id) === userId ? conversation.seller : conversation.buyer;
+    return { id: conversation.id, productId: String(conversation.product), productTitle: conversation.productTitle, participant: { id: other?.id, name: other?.name || 'Utilizador indisponível', avatarFilename: other?.avatarFilename } };
+  },
   async open(userId, productId) {
     const product = await Product.findOne({ _id: productId, status: { $ne: 'deleted' } });
     if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');

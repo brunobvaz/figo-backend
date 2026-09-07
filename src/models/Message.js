@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true, maxlength: 2000 },
   clientId: { type: String, required: true },
+  pushState: { type: String, enum: ['pending', 'queued'], default: 'pending', index: true },
   readAt: { type: Date, default: null }
 }, { timestamps: true });
 schema.index({ conversation: 1, _id: -1 });

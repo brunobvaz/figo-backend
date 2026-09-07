@@ -1,3 +1,4 @@
+import { PushDevice } from '../models/PushDevice.js';
 import argon2 from 'argon2';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
@@ -104,7 +105,10 @@ export const authService = {
     if (!user || user.status !== 'active') throw new AppError(403, 'USER_INACTIVE', 'A conta não está ativa.');
     session.revokedAt = new Date();
     await session.save();
-    return createSession(user, metadata);
+    const next = await createSession(user, metadata);
+    const nextSession = tokenService.verifyAccessToken(next.accessToken).sid;
+    await PushDevice.updateMany({ user: user.id, session: session.id }, { $set: { session: nextSession } });
+    return next;
   },
 
   async logout(refreshToken) {

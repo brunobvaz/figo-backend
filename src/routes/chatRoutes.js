@@ -15,6 +15,7 @@ const rateLimitMessage = { success: false, error: { code: 'CHAT_RATE_LIMIT', mes
 router.use(rateLimit({ windowMs: 900000, limit: 2000, standardHeaders: 'draft-8', legacyHeaders: false, message: rateLimitMessage }));
 router.use(authenticate);
 router.use(rateLimit({ windowMs: 60000, limit: 120, keyGenerator: (req) => req.user.id, standardHeaders: 'draft-8', legacyHeaders: false, message: rateLimitMessage }));
+router.get('/:id', validate(z.object({ params })), action((req) => chatService.detail(req.user.id, req.params.id)));
 router.get('/', validate(z.object({ query: z.object({ page: z.coerce.number().int().min(1).max(10000).default(1), limit }) })), action((req) => chatService.list(req.user.id, req.validated.query.page, req.validated.query.limit)));
 router.post('/', validate(z.object({ body: z.object({ productId: id }) })), action((req) => chatService.open(req.user.id, req.body.productId)));
 router.get('/:id/messages', validate(z.object({ params, query: z.object({ before: id.optional(), limit }) })), action((req) => chatService.messages(req.user.id, req.params.id, req.validated.query)));

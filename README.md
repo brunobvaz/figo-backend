@@ -175,3 +175,21 @@ Todos os caminhos abaixo têm o prefixo `/api/v1`:
 O chat tem limites próprios: 2000 pedidos por IP em 15 minutos, 120 pedidos por utilizador por minuto e 60 envios por minuto. Não consome o limite geral destinado às restantes rotas. Contadores são derivados de mensagens persistidas, e marcar um lote como lido não marca mensagens que chegam depois. A lista de conversas contém o título do produto no momento em que a conversa foi criada.
 
 Validação: `npm test` inclui envio bidirecional, isolamento de terceiros, leitura, paginação, reenvios idempotentes e junção de mensagens no cliente. Nesta fase não há push nem WebSocket.
+
+## Notificações push de mensagens
+
+O backend usa diretamente a API HTTPS do Expo Push Service. Configure APNs (iOS) e FCM v1 (Android) nas credenciais do projeto EAS, publique o backend e defina `PUSH_ENABLED=true` no Render. Se a segurança adicional do Expo Push Service estiver ativa, configure também `EXPO_ACCESS_TOKEN` como segredo no backend. Não coloque esse segredo no mobile.
+
+- `PUT /api/v1/push/device` recebe `{ token, platform: 'ios' | 'android' }`, com JWT, e associa o dispositivo à sessão autenticada.
+- `DELETE /api/v1/push/device` recebe `{ token }`, com JWT, e remove apenas a associação dessa sessão.
+- `GET /api/v1/conversations/:id` obtém o contexto para abrir a conversa pelo aviso, com a mesma autorização dos restantes endpoints de chat.
+
+Cada mensagem nova guarda `pushState: pending` na mesma escrita que guarda o texto. O worker, iniciado por `src/server.js`, cria entregas únicas por mensagem/dispositivo/associação e verifica mensagens lidas, conta ativa, sessão não revogada e validade do dispositivo antes de enviar. A rotação do refresh token transfere a associação para a nova sessão. Logout e expiração impedem os envios seguintes; avisos já entregues ao serviço Apple/Google não podem ser retirados remotamente.
+
+O worker corre a cada 5 segundos enquanto o processo está ativo. Falhas temporárias usam espera exponencial até 5 tentativas; tickets aceites são consultados após 15 minutos. `DeviceNotRegistered` remove o token. As entregas expiram em 24 horas e os registos são removidos após 7 dias. Mensagens antigas sem `pushState` não geram notificações retroativas. O conteúdo mostra apenas “Nova mensagem de [nome]” e identificadores para navegação, sem o texto privado.
+
+As coleções `pushdevices` e `pushdeliveries` ficam na mesma base MongoDB e os índices são criados pelos modelos. A fila resiste a reinícios, mas o serviço web deve permanecer ativo para processar imediatamente. Uma instância Render que adormece pode atrasar os envios/recibos; para produção use um serviço sempre ativo. Não é necessário Redis nesta fase.
+
+Reenvios da mesma mensagem não criam novas entregas. Porém, uma falha de rede depois de o Expo aceitar o pedido, ou um reinício antes de guardar o ticket, pode provocar uma repetição externa. Não se promete entrega exatamente uma vez nem entrega garantida ao dispositivo. `status: done` com recibo positivo confirma a aceitação pelo fornecedor, não que o utilizador viu a notificação.
+
+Testes: `npm test` utiliza respostas simuladas do Expo e nunca envia notificações reais. Erros permanentes ficam em `pushdeliveries.lastError` e nos logs, sem tokens ou texto das mensagens.

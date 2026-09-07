@@ -4,6 +4,8 @@ import { z } from 'zod';
 const durationPattern = /^\d+(ms|s|m|h|d)$/;
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PUSH_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  EXPO_ACCESS_TOKEN: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(3000),
   MONGODB_URI: z.string().min(1),
   MONGODB_DB_NAME: z.string().trim().min(1).default('development'),
