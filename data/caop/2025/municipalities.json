@@ -1,0 +1,1542 @@
+[
+  {
+    "code": "0101",
+    "name": "Águeda",
+    "region": "Continente"
+  },
+  {
+    "code": "0102",
+    "name": "Albergaria-a-Velha",
+    "region": "Continente"
+  },
+  {
+    "code": "0103",
+    "name": "Anadia",
+    "region": "Continente"
+  },
+  {
+    "code": "0104",
+    "name": "Arouca",
+    "region": "Continente"
+  },
+  {
+    "code": "0105",
+    "name": "Aveiro",
+    "region": "Continente"
+  },
+  {
+    "code": "0106",
+    "name": "Castelo de Paiva",
+    "region": "Continente"
+  },
+  {
+    "code": "0107",
+    "name": "Espinho",
+    "region": "Continente"
+  },
+  {
+    "code": "0108",
+    "name": "Estarreja",
+    "region": "Continente"
+  },
+  {
+    "code": "0109",
+    "name": "Santa Maria da Feira",
+    "region": "Continente"
+  },
+  {
+    "code": "0110",
+    "name": "Ílhavo",
+    "region": "Continente"
+  },
+  {
+    "code": "0111",
+    "name": "Mealhada",
+    "region": "Continente"
+  },
+  {
+    "code": "0112",
+    "name": "Murtosa",
+    "region": "Continente"
+  },
+  {
+    "code": "0113",
+    "name": "Oliveira de Azeméis",
+    "region": "Continente"
+  },
+  {
+    "code": "0114",
+    "name": "Oliveira do Bairro",
+    "region": "Continente"
+  },
+  {
+    "code": "0115",
+    "name": "Ovar",
+    "region": "Continente"
+  },
+  {
+    "code": "0116",
+    "name": "São João da Madeira",
+    "region": "Continente"
+  },
+  {
+    "code": "0117",
+    "name": "Sever do Vouga",
+    "region": "Continente"
+  },
+  {
+    "code": "0118",
+    "name": "Vagos",
+    "region": "Continente"
+  },
+  {
+    "code": "0119",
+    "name": "Vale de Cambra",
+    "region": "Continente"
+  },
+  {
+    "code": "0201",
+    "name": "Aljustrel",
+    "region": "Continente"
+  },
+  {
+    "code": "0202",
+    "name": "Almodôvar",
+    "region": "Continente"
+  },
+  {
+    "code": "0203",
+    "name": "Alvito",
+    "region": "Continente"
+  },
+  {
+    "code": "0204",
+    "name": "Barrancos",
+    "region": "Continente"
+  },
+  {
+    "code": "0205",
+    "name": "Beja",
+    "region": "Continente"
+  },
+  {
+    "code": "0206",
+    "name": "Castro Verde",
+    "region": "Continente"
+  },
+  {
+    "code": "0207",
+    "name": "Cuba",
+    "region": "Continente"
+  },
+  {
+    "code": "0208",
+    "name": "Ferreira do Alentejo",
+    "region": "Continente"
+  },
+  {
+    "code": "0209",
+    "name": "Mértola",
+    "region": "Continente"
+  },
+  {
+    "code": "0210",
+    "name": "Moura",
+    "region": "Continente"
+  },
+  {
+    "code": "0211",
+    "name": "Odemira",
+    "region": "Continente"
+  },
+  {
+    "code": "0212",
+    "name": "Ourique",
+    "region": "Continente"
+  },
+  {
+    "code": "0213",
+    "name": "Serpa",
+    "region": "Continente"
+  },
+  {
+    "code": "0214",
+    "name": "Vidigueira",
+    "region": "Continente"
+  },
+  {
+    "code": "0301",
+    "name": "Amares",
+    "region": "Continente"
+  },
+  {
+    "code": "0302",
+    "name": "Barcelos",
+    "region": "Continente"
+  },
+  {
+    "code": "0303",
+    "name": "Braga",
+    "region": "Continente"
+  },
+  {
+    "code": "0304",
+    "name": "Cabeceiras de Basto",
+    "region": "Continente"
+  },
+  {
+    "code": "0305",
+    "name": "Celorico de Basto",
+    "region": "Continente"
+  },
+  {
+    "code": "0306",
+    "name": "Esposende",
+    "region": "Continente"
+  },
+  {
+    "code": "0307",
+    "name": "Fafe",
+    "region": "Continente"
+  },
+  {
+    "code": "0308",
+    "name": "Guimarães",
+    "region": "Continente"
+  },
+  {
+    "code": "0309",
+    "name": "Póvoa de Lanhoso",
+    "region": "Continente"
+  },
+  {
+    "code": "0310",
+    "name": "Terras de Bouro",
+    "region": "Continente"
+  },
+  {
+    "code": "0311",
+    "name": "Vieira do Minho",
+    "region": "Continente"
+  },
+  {
+    "code": "0312",
+    "name": "Vila Nova de Famalicão",
+    "region": "Continente"
+  },
+  {
+    "code": "0313",
+    "name": "Vila Verde",
+    "region": "Continente"
+  },
+  {
+    "code": "0314",
+    "name": "Vizela",
+    "region": "Continente"
+  },
+  {
+    "code": "0401",
+    "name": "Alfândega da Fé",
+    "region": "Continente"
+  },
+  {
+    "code": "0402",
+    "name": "Bragança",
+    "region": "Continente"
+  },
+  {
+    "code": "0403",
+    "name": "Carrazeda de Ansiães",
+    "region": "Continente"
+  },
+  {
+    "code": "0404",
+    "name": "Freixo de Espada à Cinta",
+    "region": "Continente"
+  },
+  {
+    "code": "0405",
+    "name": "Macedo de Cavaleiros",
+    "region": "Continente"
+  },
+  {
+    "code": "0406",
+    "name": "Miranda do Douro",
+    "region": "Continente"
+  },
+  {
+    "code": "0407",
+    "name": "Mirandela",
+    "region": "Continente"
+  },
+  {
+    "code": "0408",
+    "name": "Mogadouro",
+    "region": "Continente"
+  },
+  {
+    "code": "0409",
+    "name": "Torre de Moncorvo",
+    "region": "Continente"
+  },
+  {
+    "code": "0410",
+    "name": "Vila Flor",
+    "region": "Continente"
+  },
+  {
+    "code": "0411",
+    "name": "Vimioso",
+    "region": "Continente"
+  },
+  {
+    "code": "0412",
+    "name": "Vinhais",
+    "region": "Continente"
+  },
+  {
+    "code": "0501",
+    "name": "Belmonte",
+    "region": "Continente"
+  },
+  {
+    "code": "0502",
+    "name": "Castelo Branco",
+    "region": "Continente"
+  },
+  {
+    "code": "0503",
+    "name": "Covilhã",
+    "region": "Continente"
+  },
+  {
+    "code": "0504",
+    "name": "Fundão",
+    "region": "Continente"
+  },
+  {
+    "code": "0505",
+    "name": "Idanha-a-Nova",
+    "region": "Continente"
+  },
+  {
+    "code": "0506",
+    "name": "Oleiros",
+    "region": "Continente"
+  },
+  {
+    "code": "0507",
+    "name": "Penamacor",
+    "region": "Continente"
+  },
+  {
+    "code": "0508",
+    "name": "Proença-a-Nova",
+    "region": "Continente"
+  },
+  {
+    "code": "0509",
+    "name": "Sertã",
+    "region": "Continente"
+  },
+  {
+    "code": "0510",
+    "name": "Vila de Rei",
+    "region": "Continente"
+  },
+  {
+    "code": "0511",
+    "name": "Vila Velha de Ródão",
+    "region": "Continente"
+  },
+  {
+    "code": "0601",
+    "name": "Arganil",
+    "region": "Continente"
+  },
+  {
+    "code": "0602",
+    "name": "Cantanhede",
+    "region": "Continente"
+  },
+  {
+    "code": "0603",
+    "name": "Coimbra",
+    "region": "Continente"
+  },
+  {
+    "code": "0604",
+    "name": "Condeixa-a-Nova",
+    "region": "Continente"
+  },
+  {
+    "code": "0605",
+    "name": "Figueira da Foz",
+    "region": "Continente"
+  },
+  {
+    "code": "0606",
+    "name": "Góis",
+    "region": "Continente"
+  },
+  {
+    "code": "0607",
+    "name": "Lousã",
+    "region": "Continente"
+  },
+  {
+    "code": "0608",
+    "name": "Mira",
+    "region": "Continente"
+  },
+  {
+    "code": "0609",
+    "name": "Miranda do Corvo",
+    "region": "Continente"
+  },
+  {
+    "code": "0610",
+    "name": "Montemor-o-Velho",
+    "region": "Continente"
+  },
+  {
+    "code": "0611",
+    "name": "Oliveira do Hospital",
+    "region": "Continente"
+  },
+  {
+    "code": "0612",
+    "name": "Pampilhosa da Serra",
+    "region": "Continente"
+  },
+  {
+    "code": "0613",
+    "name": "Penacova",
+    "region": "Continente"
+  },
+  {
+    "code": "0614",
+    "name": "Penela",
+    "region": "Continente"
+  },
+  {
+    "code": "0615",
+    "name": "Soure",
+    "region": "Continente"
+  },
+  {
+    "code": "0616",
+    "name": "Tábua",
+    "region": "Continente"
+  },
+  {
+    "code": "0617",
+    "name": "Vila Nova de Poiares",
+    "region": "Continente"
+  },
+  {
+    "code": "0701",
+    "name": "Alandroal",
+    "region": "Continente"
+  },
+  {
+    "code": "0702",
+    "name": "Arraiolos",
+    "region": "Continente"
+  },
+  {
+    "code": "0703",
+    "name": "Borba",
+    "region": "Continente"
+  },
+  {
+    "code": "0704",
+    "name": "Estremoz",
+    "region": "Continente"
+  },
+  {
+    "code": "0705",
+    "name": "Évora",
+    "region": "Continente"
+  },
+  {
+    "code": "0706",
+    "name": "Montemor-o-Novo",
+    "region": "Continente"
+  },
+  {
+    "code": "0707",
+    "name": "Mora",
+    "region": "Continente"
+  },
+  {
+    "code": "0708",
+    "name": "Mourão",
+    "region": "Continente"
+  },
+  {
+    "code": "0709",
+    "name": "Portel",
+    "region": "Continente"
+  },
+  {
+    "code": "0710",
+    "name": "Redondo",
+    "region": "Continente"
+  },
+  {
+    "code": "0711",
+    "name": "Reguengos de Monsaraz",
+    "region": "Continente"
+  },
+  {
+    "code": "0712",
+    "name": "Vendas Novas",
+    "region": "Continente"
+  },
+  {
+    "code": "0713",
+    "name": "Viana do Alentejo",
+    "region": "Continente"
+  },
+  {
+    "code": "0714",
+    "name": "Vila Viçosa",
+    "region": "Continente"
+  },
+  {
+    "code": "0801",
+    "name": "Albufeira",
+    "region": "Continente"
+  },
+  {
+    "code": "0802",
+    "name": "Alcoutim",
+    "region": "Continente"
+  },
+  {
+    "code": "0803",
+    "name": "Aljezur",
+    "region": "Continente"
+  },
+  {
+    "code": "0804",
+    "name": "Castro Marim",
+    "region": "Continente"
+  },
+  {
+    "code": "0805",
+    "name": "Faro",
+    "region": "Continente"
+  },
+  {
+    "code": "0806",
+    "name": "Lagoa",
+    "region": "Continente"
+  },
+  {
+    "code": "0807",
+    "name": "Lagos",
+    "region": "Continente"
+  },
+  {
+    "code": "0808",
+    "name": "Loulé",
+    "region": "Continente"
+  },
+  {
+    "code": "0809",
+    "name": "Monchique",
+    "region": "Continente"
+  },
+  {
+    "code": "0810",
+    "name": "Olhão",
+    "region": "Continente"
+  },
+  {
+    "code": "0811",
+    "name": "Portimão",
+    "region": "Continente"
+  },
+  {
+    "code": "0812",
+    "name": "São Brás de Alportel",
+    "region": "Continente"
+  },
+  {
+    "code": "0813",
+    "name": "Silves",
+    "region": "Continente"
+  },
+  {
+    "code": "0814",
+    "name": "Tavira",
+    "region": "Continente"
+  },
+  {
+    "code": "0815",
+    "name": "Vila do Bispo",
+    "region": "Continente"
+  },
+  {
+    "code": "0816",
+    "name": "Vila Real de Santo António",
+    "region": "Continente"
+  },
+  {
+    "code": "0901",
+    "name": "Aguiar da Beira",
+    "region": "Continente"
+  },
+  {
+    "code": "0902",
+    "name": "Almeida",
+    "region": "Continente"
+  },
+  {
+    "code": "0903",
+    "name": "Celorico da Beira",
+    "region": "Continente"
+  },
+  {
+    "code": "0904",
+    "name": "Figueira de Castelo Rodrigo",
+    "region": "Continente"
+  },
+  {
+    "code": "0905",
+    "name": "Fornos de Algodres",
+    "region": "Continente"
+  },
+  {
+    "code": "0906",
+    "name": "Gouveia",
+    "region": "Continente"
+  },
+  {
+    "code": "0907",
+    "name": "Guarda",
+    "region": "Continente"
+  },
+  {
+    "code": "0908",
+    "name": "Manteigas",
+    "region": "Continente"
+  },
+  {
+    "code": "0909",
+    "name": "Mêda",
+    "region": "Continente"
+  },
+  {
+    "code": "0910",
+    "name": "Pinhel",
+    "region": "Continente"
+  },
+  {
+    "code": "0911",
+    "name": "Sabugal",
+    "region": "Continente"
+  },
+  {
+    "code": "0912",
+    "name": "Seia",
+    "region": "Continente"
+  },
+  {
+    "code": "0913",
+    "name": "Trancoso",
+    "region": "Continente"
+  },
+  {
+    "code": "0914",
+    "name": "Vila Nova de Foz Côa",
+    "region": "Continente"
+  },
+  {
+    "code": "1001",
+    "name": "Alcobaça",
+    "region": "Continente"
+  },
+  {
+    "code": "1002",
+    "name": "Alvaiázere",
+    "region": "Continente"
+  },
+  {
+    "code": "1003",
+    "name": "Ansião",
+    "region": "Continente"
+  },
+  {
+    "code": "1004",
+    "name": "Batalha",
+    "region": "Continente"
+  },
+  {
+    "code": "1005",
+    "name": "Bombarral",
+    "region": "Continente"
+  },
+  {
+    "code": "1006",
+    "name": "Caldas da Rainha",
+    "region": "Continente"
+  },
+  {
+    "code": "1007",
+    "name": "Castanheira de Pêra",
+    "region": "Continente"
+  },
+  {
+    "code": "1008",
+    "name": "Figueiró dos Vinhos",
+    "region": "Continente"
+  },
+  {
+    "code": "1009",
+    "name": "Leiria",
+    "region": "Continente"
+  },
+  {
+    "code": "1010",
+    "name": "Marinha Grande",
+    "region": "Continente"
+  },
+  {
+    "code": "1011",
+    "name": "Nazaré",
+    "region": "Continente"
+  },
+  {
+    "code": "1012",
+    "name": "Óbidos",
+    "region": "Continente"
+  },
+  {
+    "code": "1013",
+    "name": "Pedrógão Grande",
+    "region": "Continente"
+  },
+  {
+    "code": "1014",
+    "name": "Peniche",
+    "region": "Continente"
+  },
+  {
+    "code": "1015",
+    "name": "Pombal",
+    "region": "Continente"
+  },
+  {
+    "code": "1016",
+    "name": "Porto de Mós",
+    "region": "Continente"
+  },
+  {
+    "code": "1101",
+    "name": "Alenquer",
+    "region": "Continente"
+  },
+  {
+    "code": "1102",
+    "name": "Arruda dos Vinhos",
+    "region": "Continente"
+  },
+  {
+    "code": "1103",
+    "name": "Azambuja",
+    "region": "Continente"
+  },
+  {
+    "code": "1104",
+    "name": "Cadaval",
+    "region": "Continente"
+  },
+  {
+    "code": "1105",
+    "name": "Cascais",
+    "region": "Continente"
+  },
+  {
+    "code": "1106",
+    "name": "Lisboa",
+    "region": "Continente"
+  },
+  {
+    "code": "1107",
+    "name": "Loures",
+    "region": "Continente"
+  },
+  {
+    "code": "1108",
+    "name": "Lourinhã",
+    "region": "Continente"
+  },
+  {
+    "code": "1109",
+    "name": "Mafra",
+    "region": "Continente"
+  },
+  {
+    "code": "1110",
+    "name": "Oeiras",
+    "region": "Continente"
+  },
+  {
+    "code": "1111",
+    "name": "Sintra",
+    "region": "Continente"
+  },
+  {
+    "code": "1112",
+    "name": "Sobral de Monte Agraço",
+    "region": "Continente"
+  },
+  {
+    "code": "1113",
+    "name": "Torres Vedras",
+    "region": "Continente"
+  },
+  {
+    "code": "1114",
+    "name": "Vila Franca de Xira",
+    "region": "Continente"
+  },
+  {
+    "code": "1115",
+    "name": "Amadora",
+    "region": "Continente"
+  },
+  {
+    "code": "1116",
+    "name": "Odivelas",
+    "region": "Continente"
+  },
+  {
+    "code": "1201",
+    "name": "Alter do Chão",
+    "region": "Continente"
+  },
+  {
+    "code": "1202",
+    "name": "Arronches",
+    "region": "Continente"
+  },
+  {
+    "code": "1203",
+    "name": "Avis",
+    "region": "Continente"
+  },
+  {
+    "code": "1204",
+    "name": "Campo Maior",
+    "region": "Continente"
+  },
+  {
+    "code": "1205",
+    "name": "Castelo de Vide",
+    "region": "Continente"
+  },
+  {
+    "code": "1206",
+    "name": "Crato",
+    "region": "Continente"
+  },
+  {
+    "code": "1207",
+    "name": "Elvas",
+    "region": "Continente"
+  },
+  {
+    "code": "1208",
+    "name": "Fronteira",
+    "region": "Continente"
+  },
+  {
+    "code": "1209",
+    "name": "Gavião",
+    "region": "Continente"
+  },
+  {
+    "code": "1210",
+    "name": "Marvão",
+    "region": "Continente"
+  },
+  {
+    "code": "1211",
+    "name": "Monforte",
+    "region": "Continente"
+  },
+  {
+    "code": "1212",
+    "name": "Nisa",
+    "region": "Continente"
+  },
+  {
+    "code": "1213",
+    "name": "Ponte de Sor",
+    "region": "Continente"
+  },
+  {
+    "code": "1214",
+    "name": "Portalegre",
+    "region": "Continente"
+  },
+  {
+    "code": "1215",
+    "name": "Sousel",
+    "region": "Continente"
+  },
+  {
+    "code": "1301",
+    "name": "Amarante",
+    "region": "Continente"
+  },
+  {
+    "code": "1302",
+    "name": "Baião",
+    "region": "Continente"
+  },
+  {
+    "code": "1303",
+    "name": "Felgueiras",
+    "region": "Continente"
+  },
+  {
+    "code": "1304",
+    "name": "Gondomar",
+    "region": "Continente"
+  },
+  {
+    "code": "1305",
+    "name": "Lousada",
+    "region": "Continente"
+  },
+  {
+    "code": "1306",
+    "name": "Maia",
+    "region": "Continente"
+  },
+  {
+    "code": "1307",
+    "name": "Marco de Canaveses",
+    "region": "Continente"
+  },
+  {
+    "code": "1308",
+    "name": "Matosinhos",
+    "region": "Continente"
+  },
+  {
+    "code": "1309",
+    "name": "Paços de Ferreira",
+    "region": "Continente"
+  },
+  {
+    "code": "1310",
+    "name": "Paredes",
+    "region": "Continente"
+  },
+  {
+    "code": "1311",
+    "name": "Penafiel",
+    "region": "Continente"
+  },
+  {
+    "code": "1312",
+    "name": "Porto",
+    "region": "Continente"
+  },
+  {
+    "code": "1313",
+    "name": "Póvoa de Varzim",
+    "region": "Continente"
+  },
+  {
+    "code": "1314",
+    "name": "Santo Tirso",
+    "region": "Continente"
+  },
+  {
+    "code": "1315",
+    "name": "Valongo",
+    "region": "Continente"
+  },
+  {
+    "code": "1316",
+    "name": "Vila do Conde",
+    "region": "Continente"
+  },
+  {
+    "code": "1317",
+    "name": "Vila Nova de Gaia",
+    "region": "Continente"
+  },
+  {
+    "code": "1318",
+    "name": "Trofa",
+    "region": "Continente"
+  },
+  {
+    "code": "1401",
+    "name": "Abrantes",
+    "region": "Continente"
+  },
+  {
+    "code": "1402",
+    "name": "Alcanena",
+    "region": "Continente"
+  },
+  {
+    "code": "1403",
+    "name": "Almeirim",
+    "region": "Continente"
+  },
+  {
+    "code": "1404",
+    "name": "Alpiarça",
+    "region": "Continente"
+  },
+  {
+    "code": "1405",
+    "name": "Benavente",
+    "region": "Continente"
+  },
+  {
+    "code": "1406",
+    "name": "Cartaxo",
+    "region": "Continente"
+  },
+  {
+    "code": "1407",
+    "name": "Chamusca",
+    "region": "Continente"
+  },
+  {
+    "code": "1408",
+    "name": "Constância",
+    "region": "Continente"
+  },
+  {
+    "code": "1409",
+    "name": "Coruche",
+    "region": "Continente"
+  },
+  {
+    "code": "1410",
+    "name": "Entroncamento",
+    "region": "Continente"
+  },
+  {
+    "code": "1411",
+    "name": "Ferreira do Zêzere",
+    "region": "Continente"
+  },
+  {
+    "code": "1412",
+    "name": "Golegã",
+    "region": "Continente"
+  },
+  {
+    "code": "1413",
+    "name": "Mação",
+    "region": "Continente"
+  },
+  {
+    "code": "1414",
+    "name": "Rio Maior",
+    "region": "Continente"
+  },
+  {
+    "code": "1415",
+    "name": "Salvaterra de Magos",
+    "region": "Continente"
+  },
+  {
+    "code": "1416",
+    "name": "Santarém",
+    "region": "Continente"
+  },
+  {
+    "code": "1417",
+    "name": "Sardoal",
+    "region": "Continente"
+  },
+  {
+    "code": "1418",
+    "name": "Tomar",
+    "region": "Continente"
+  },
+  {
+    "code": "1419",
+    "name": "Torres Novas",
+    "region": "Continente"
+  },
+  {
+    "code": "1420",
+    "name": "Vila Nova da Barquinha",
+    "region": "Continente"
+  },
+  {
+    "code": "1421",
+    "name": "Ourém",
+    "region": "Continente"
+  },
+  {
+    "code": "1501",
+    "name": "Alcácer do Sal",
+    "region": "Continente"
+  },
+  {
+    "code": "1502",
+    "name": "Alcochete",
+    "region": "Continente"
+  },
+  {
+    "code": "1503",
+    "name": "Almada",
+    "region": "Continente"
+  },
+  {
+    "code": "1504",
+    "name": "Barreiro",
+    "region": "Continente"
+  },
+  {
+    "code": "1505",
+    "name": "Grândola",
+    "region": "Continente"
+  },
+  {
+    "code": "1506",
+    "name": "Moita",
+    "region": "Continente"
+  },
+  {
+    "code": "1507",
+    "name": "Montijo",
+    "region": "Continente"
+  },
+  {
+    "code": "1508",
+    "name": "Palmela",
+    "region": "Continente"
+  },
+  {
+    "code": "1509",
+    "name": "Santiago do Cacém",
+    "region": "Continente"
+  },
+  {
+    "code": "1510",
+    "name": "Seixal",
+    "region": "Continente"
+  },
+  {
+    "code": "1511",
+    "name": "Sesimbra",
+    "region": "Continente"
+  },
+  {
+    "code": "1512",
+    "name": "Setúbal",
+    "region": "Continente"
+  },
+  {
+    "code": "1513",
+    "name": "Sines",
+    "region": "Continente"
+  },
+  {
+    "code": "1601",
+    "name": "Arcos de Valdevez",
+    "region": "Continente"
+  },
+  {
+    "code": "1602",
+    "name": "Caminha",
+    "region": "Continente"
+  },
+  {
+    "code": "1603",
+    "name": "Melgaço",
+    "region": "Continente"
+  },
+  {
+    "code": "1604",
+    "name": "Monção",
+    "region": "Continente"
+  },
+  {
+    "code": "1605",
+    "name": "Paredes de Coura",
+    "region": "Continente"
+  },
+  {
+    "code": "1606",
+    "name": "Ponte da Barca",
+    "region": "Continente"
+  },
+  {
+    "code": "1607",
+    "name": "Ponte de Lima",
+    "region": "Continente"
+  },
+  {
+    "code": "1608",
+    "name": "Valença",
+    "region": "Continente"
+  },
+  {
+    "code": "1609",
+    "name": "Viana do Castelo",
+    "region": "Continente"
+  },
+  {
+    "code": "1610",
+    "name": "Vila Nova de Cerveira",
+    "region": "Continente"
+  },
+  {
+    "code": "1701",
+    "name": "Alijó",
+    "region": "Continente"
+  },
+  {
+    "code": "1702",
+    "name": "Boticas",
+    "region": "Continente"
+  },
+  {
+    "code": "1703",
+    "name": "Chaves",
+    "region": "Continente"
+  },
+  {
+    "code": "1704",
+    "name": "Mesão Frio",
+    "region": "Continente"
+  },
+  {
+    "code": "1705",
+    "name": "Mondim de Basto",
+    "region": "Continente"
+  },
+  {
+    "code": "1706",
+    "name": "Montalegre",
+    "region": "Continente"
+  },
+  {
+    "code": "1707",
+    "name": "Murça",
+    "region": "Continente"
+  },
+  {
+    "code": "1708",
+    "name": "Peso da Régua",
+    "region": "Continente"
+  },
+  {
+    "code": "1709",
+    "name": "Ribeira de Pena",
+    "region": "Continente"
+  },
+  {
+    "code": "1710",
+    "name": "Sabrosa",
+    "region": "Continente"
+  },
+  {
+    "code": "1711",
+    "name": "Santa Marta de Penaguião",
+    "region": "Continente"
+  },
+  {
+    "code": "1712",
+    "name": "Valpaços",
+    "region": "Continente"
+  },
+  {
+    "code": "1713",
+    "name": "Vila Pouca de Aguiar",
+    "region": "Continente"
+  },
+  {
+    "code": "1714",
+    "name": "Vila Real",
+    "region": "Continente"
+  },
+  {
+    "code": "1801",
+    "name": "Armamar",
+    "region": "Continente"
+  },
+  {
+    "code": "1802",
+    "name": "Carregal do Sal",
+    "region": "Continente"
+  },
+  {
+    "code": "1803",
+    "name": "Castro Daire",
+    "region": "Continente"
+  },
+  {
+    "code": "1804",
+    "name": "Cinfães",
+    "region": "Continente"
+  },
+  {
+    "code": "1805",
+    "name": "Lamego",
+    "region": "Continente"
+  },
+  {
+    "code": "1806",
+    "name": "Mangualde",
+    "region": "Continente"
+  },
+  {
+    "code": "1807",
+    "name": "Moimenta da Beira",
+    "region": "Continente"
+  },
+  {
+    "code": "1808",
+    "name": "Mortágua",
+    "region": "Continente"
+  },
+  {
+    "code": "1809",
+    "name": "Nelas",
+    "region": "Continente"
+  },
+  {
+    "code": "1810",
+    "name": "Oliveira de Frades",
+    "region": "Continente"
+  },
+  {
+    "code": "1811",
+    "name": "Penalva do Castelo",
+    "region": "Continente"
+  },
+  {
+    "code": "1812",
+    "name": "Penedono",
+    "region": "Continente"
+  },
+  {
+    "code": "1813",
+    "name": "Resende",
+    "region": "Continente"
+  },
+  {
+    "code": "1814",
+    "name": "Santa Comba Dão",
+    "region": "Continente"
+  },
+  {
+    "code": "1815",
+    "name": "São João da Pesqueira",
+    "region": "Continente"
+  },
+  {
+    "code": "1816",
+    "name": "São Pedro do Sul",
+    "region": "Continente"
+  },
+  {
+    "code": "1817",
+    "name": "Sátão",
+    "region": "Continente"
+  },
+  {
+    "code": "1818",
+    "name": "Sernancelhe",
+    "region": "Continente"
+  },
+  {
+    "code": "1819",
+    "name": "Tabuaço",
+    "region": "Continente"
+  },
+  {
+    "code": "1820",
+    "name": "Tarouca",
+    "region": "Continente"
+  },
+  {
+    "code": "1821",
+    "name": "Tondela",
+    "region": "Continente"
+  },
+  {
+    "code": "1822",
+    "name": "Vila Nova de Paiva",
+    "region": "Continente"
+  },
+  {
+    "code": "1823",
+    "name": "Viseu",
+    "region": "Continente"
+  },
+  {
+    "code": "1824",
+    "name": "Vouzela",
+    "region": "Continente"
+  },
+  {
+    "code": "3101",
+    "name": "Calheta",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3102",
+    "name": "Câmara de Lobos",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3103",
+    "name": "Funchal",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3104",
+    "name": "Machico",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3105",
+    "name": "Ponta do Sol",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3106",
+    "name": "Porto Moniz",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3107",
+    "name": "Ribeira Brava",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3108",
+    "name": "Santa Cruz",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3109",
+    "name": "Santana",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3110",
+    "name": "São Vicente",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "3201",
+    "name": "Porto Santo",
+    "region": "Região Autónoma da Madeira"
+  },
+  {
+    "code": "4101",
+    "name": "Vila do Porto",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4201",
+    "name": "Lagoa",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4202",
+    "name": "Nordeste",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4203",
+    "name": "Ponta Delgada",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4204",
+    "name": "Povoação",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4205",
+    "name": "Ribeira Grande",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4206",
+    "name": "Vila Franca do Campo",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4301",
+    "name": "Angra do Heroísmo",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4302",
+    "name": "Praia da Vitória",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4401",
+    "name": "Santa Cruz da Graciosa",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4501",
+    "name": "Calheta de São Jorge",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4502",
+    "name": "Velas",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4601",
+    "name": "Lajes do Pico",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4602",
+    "name": "Madalena",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4603",
+    "name": "São Roque do Pico",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4701",
+    "name": "Horta",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4801",
+    "name": "Lajes das Flores",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4802",
+    "name": "Santa Cruz das Flores",
+    "region": "Região Autónoma dos Açores"
+  },
+  {
+    "code": "4901",
+    "name": "Corvo",
+    "region": "Região Autónoma dos Açores"
+  }
+]

@@ -14,6 +14,8 @@ import { EmailOtp } from '../src/models/EmailOtp.js';
 import { hashOtp, hashToken } from '../src/utils/crypto.js';
 
 let mongo;
+const productLocation = { municipalityCode: '0407', parishCode: '040701', locality: 'Mirandela', latitude: 41.48, longitude: -7.18, locationSource: 'gps' };
+
 const validRegistration = {
   firstName: 'Manuel', lastName: 'Silva', email: 'manuel@email.pt', phone: '912345678', password: 'Password!123',
   roles: ['buyer'], location: { city: 'Mirandela', postalCode: '5370-000' }, confirmAdult: true, acceptTerms: true, marketingConsent: false
@@ -27,7 +29,14 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
 });
-beforeEach(async () => Promise.all(Object.values(mongoose.connection.collections).map((collection) => collection.deleteMany({}))));
+beforeEach(async () => {
+  await Promise.all(Object.values(mongoose.connection.collections).map(collection => collection.deleteMany({})));
+  const db = mongoose.connection.db;
+  await Promise.all(['referenceDatasets', 'municipalities', 'parishes'].map(name => db.collection(name).deleteMany({})));
+  await db.collection('referenceDatasets').insertOne({ _id: 'caop', activeVersion: 'CAOP2025' });
+  await db.collection('municipalities').insertOne({ code: '0407', name: 'Mirandela', version: 'CAOP2025' });
+  await db.collection('parishes').insertOne({ code: '040701', municipalityCode: '0407', name: 'Abambres', version: 'CAOP2025' });
+});
 afterAll(async () => { await mongoose.disconnect(); await mongo.stop(); });
 
 describe('POST /auth/register', () => {
@@ -142,7 +151,7 @@ describe('password reset', () => {
 });
 
 describe('produtos', () => {
-  const product = { title: 'Tomate coração de boi', description: 'Tomate fresco colhido esta manhã.', price: 2.6, unit: '€/kg', category: 'Legumes', location: 'Mirandela', image: 'https://example.com/tomate.jpg' };
+  const product = { title: 'Tomate coração de boi', description: 'Tomate fresco colhido esta manhã.', price: 2.6, unit: '€/kg', category: 'Legumes', ...productLocation, image: 'https://example.com/tomate.jpg' };
   it('rejeita uma imagem de produto vazia', async () => {
     await register({ roles: ['seller'] });
     await verifyUserInDatabase();
@@ -198,7 +207,7 @@ describe('chat entre utilizadores', () => {
     buyerAuth = (await login()).body.data;
     sellerAuth = (await login({ email: 'seller@email.pt' })).body.data;
     outsiderAuth = (await login({ email: 'outsider@email.pt' })).body.data;
-    const product = await request(app).post('/api/v1/products').set(headers(sellerAuth)).send({ title: 'Tomates', description: 'Tomates frescos da horta.', price: 2, unit: '€/kg', category: 'Legumes', location: 'Mirandela' });
+    const product = await request(app).post('/api/v1/products').set(headers(sellerAuth)).send({ title: 'Tomates', description: 'Tomates frescos da horta.', price: 2, unit: '€/kg', category: 'Legumes', ...productLocation });
     expect(product.status).toBe(201);
     productId = product.body.data.id;
   });

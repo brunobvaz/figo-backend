@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+import { resolveLocation } from './locationService.js';
 import { Product } from '../models/Product.js';
 import { AppError } from '../utils/AppError.js';
 import crypto from 'node:crypto';
@@ -27,13 +29,26 @@ async function findVisibleProduct(id) {
 }
 
 export const productService = {
-  async list({ search, category, sellerId, page, limit }) {
+  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm = 25, municipalityCode, parishCode }) {
     const filter = { status: { $ne: 'deleted' } };
     if (category && category !== 'Todos') filter.category = category;
-    if (sellerId) filter.seller = sellerId;
+    if (sellerId) filter.seller = new mongoose.Types.ObjectId(sellerId);
+    if (municipalityCode) filter['address.municipalityCode'] = municipalityCode;
+    if (parishCode) filter['address.parishCode'] = parishCode;
     if (search) {
       const expression = new RegExp(escapeRegex(search), 'i');
       filter.$or = [{ title: expression }, { description: expression }, { location: expression }];
+    }
+    if (latitude !== undefined && longitude !== undefined) {
+      filter.status = 'active';
+      const [result] = await Product.aggregate([
+        { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', maxDistance: radiusKm * 1000, spherical: true, query: filter } },
+        { $sort: { distanceMeters: 1, _id: 1 } },
+        { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0 } }], count: [{ $count: 'total' }] } }
+      ]);
+      await Product.populate(result.items, { path: 'seller', select: sellerFields });
+      const total = result.count[0]?.total || 0;
+      return { items: result.items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
     }
     const [items, total] = await Promise.all([
       Product.find(filter).populate('seller', sellerFields).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
@@ -43,6 +58,7 @@ export const productService = {
   },
   getById: findVisibleProduct,
   async create(userId, input, imageFile) {
+    input = await resolveLocation(input);
     const imageFilename = await saveImage(imageFile);
     let created;
     try { created = await Product.create({ ...input, image: null, imageFilename, seller: userId }); }
@@ -53,6 +69,7 @@ export const productService = {
     const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
     if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes alterar os teus próprios produtos.');
+    changes = await resolveLocation(changes);
     const previousImage = product.imageFilename;
     const imageFilename = await saveImage(imageFile);
     Object.assign(product, changes, imageFilename ? { imageFilename, image: null } : {});

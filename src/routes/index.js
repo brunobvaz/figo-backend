@@ -5,7 +5,9 @@ import productRoutes from './productRoutes.js';
 import chatRoutes from './chatRoutes.js';
 import pushRoutes from './pushRoutes.js';
 
+import locationRoutes from './locationRoutes.js';
 const router = Router();
+router.use('/locations', locationRoutes);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
