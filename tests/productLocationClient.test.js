@@ -6,7 +6,7 @@ describe('localização no formulário do produto', () => {
     expect(validateProduct({ ...product, locationChanged: false, latitude: '', longitude: '' })).toEqual({});
   });
   it.each([null, undefined, '', ' ', NaN, Infinity, 'abc', 91])('identifica o ponto em falta ou inválido: %s', latitude => {
-    expect(validateProduct({ ...product, latitude }).location).toContain('Falta confirmar o ponto');
+    expect(validateProduct({ ...product, latitude }).location).toContain('Não foi possível obter as coordenadas');
   });
   it('rejeita longitude fora dos limites e aceita zero', () => {
     expect(validateProduct({ ...product, longitude: 181 }).location).toBeTruthy();

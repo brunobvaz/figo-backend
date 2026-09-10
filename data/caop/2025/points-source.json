@@ -1,0 +1,19 @@
+{
+  "version": "CAOP2025",
+  "method": "representative_point of largest polygon; WGS84 longitude/latitude",
+  "count": 3259,
+  "sources": [
+    {
+      "url": "https://ogcapi.dgterritorio.gov.pt/collections/freguesias/items?f=json&limit=4000",
+      "sha256": "52f2cd62f6ccced9e6c6d6a160df8df79bbab2aee398ab1aedb8715ed1834f46"
+    },
+    {
+      "url": "https://geo2.dgterritorio.gov.pt/caop/CAOP_RAA_2025-gpkg.zip",
+      "sha256": "b0e3b4fe5544647eb4593e0222c6430fae7e50c97f953d8ceae10707c4df9dcf"
+    },
+    {
+      "url": "https://geo2.dgterritorio.gov.pt/caop/CAOP_RAM_2025-gpkg.zip",
+      "sha256": "ae568ca2006e91205601309ff46bc8ae0cc73236165f095f8aa99a5b9a17e5d6"
+    }
+  ]
+}

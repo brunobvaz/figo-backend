@@ -14,7 +14,7 @@ import { EmailOtp } from '../src/models/EmailOtp.js';
 import { hashOtp, hashToken } from '../src/utils/crypto.js';
 
 let mongo;
-const productLocation = { municipalityCode: '0407', parishCode: '040701', locality: 'Mirandela', latitude: 41.48, longitude: -7.18, locationSource: 'gps' };
+const productLocation = { municipalityCode: '0407', parishCode: '040701', locality: 'Mirandela', latitude: 41.48, longitude: -7.18, locationSource: 'parish' };
 
 const validRegistration = {
   firstName: 'Manuel', lastName: 'Silva', email: 'manuel@email.pt', phone: '912345678', password: 'Password!123',
@@ -35,7 +35,7 @@ beforeEach(async () => {
   await Promise.all(['referenceDatasets', 'municipalities', 'parishes'].map(name => db.collection(name).deleteMany({})));
   await db.collection('referenceDatasets').insertOne({ _id: 'caop', activeVersion: 'CAOP2025' });
   await db.collection('municipalities').insertOne({ code: '0407', name: 'Mirandela', version: 'CAOP2025' });
-  await db.collection('parishes').insertOne({ code: '040701', municipalityCode: '0407', name: 'Abambres', version: 'CAOP2025' });
+  await db.collection('parishes').insertOne({ code: '040701', municipalityCode: '0407', name: 'Abambres', version: 'CAOP2025', latitude: 41.48, longitude: -7.18 });
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo.stop(); });
 

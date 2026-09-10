@@ -15,6 +15,11 @@ export async function resolveLocation(input) {
     db.collection('parishes').findOne({ version, code: parishCode, municipalityCode })
   ]);
   if (!municipality || !parish) throw new AppError(422, 'INVALID_LOCATION', 'A freguesia não pertence ao concelho selecionado.');
+  const point = parish;
+  if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)
+      || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180) {
+    throw new AppError(422, 'PARISH_POINT_UNAVAILABLE', 'A freguesia ainda não tem um ponto de referência. Tenta novamente mais tarde.');
+  }
   return { ...other, address: { municipalityCode, parishCode, locality, municipality: municipality.name, parish: parish.name, version },
-    location: `${locality}, ${parish.name}, ${municipality.name}`, geo: { type: 'Point', coordinates: [longitude, latitude] }, locationSource };
+    location: `${locality}, ${parish.name}, ${municipality.name}`, geo: { type: 'Point', coordinates: [point.longitude, point.latitude] }, locationSource: 'parish' };
 }

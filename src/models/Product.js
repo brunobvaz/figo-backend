@@ -9,7 +9,8 @@ const productSchema = new mongoose.Schema({
   location: { type: String, required: true, trim: true, maxlength: 500 },
   address: { municipalityCode: String, parishCode: String, locality: String, municipality: String, parish: String, version: String },
   geo: { type: { type: String, enum: ['Point'] }, coordinates: { type: [Number], default: undefined } },
-  locationSource: { type: String, enum: ['gps', 'manual'] },
+  // Historical products retain their original source; new locations only use parish.
+  locationSource: { type: String, enum: ['gps', 'manual', 'parish'] },
   image: { type: String, default: null },
   imageFilename: { type: String, default: null },
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

@@ -9,6 +9,10 @@ try {
   }
   const codes = new Set(municipalities.map(x => x.code));
   if (parishes.some(x => !codes.has(x.municipalityCode))) throw new Error('Relação de freguesia inválida.');
+  if (parishes.some(x => !Number.isFinite(x.latitude) || !Number.isFinite(x.longitude)
+      || x.latitude < 30 || x.latitude > 43 || x.longitude < -32 || x.longitude > -6)) {
+    throw new Error('Faltam pontos válidos das freguesias. Executa prepare-parish-points.py antes de importar.');
+  }
   if (new Set(municipalities.map(x => x.region)).size !== 3) throw new Error('Falta cobertura regional.');
   if (process.argv.includes('--check')) { console.log('CAOP2025 validada: 308 concelhos e 3259 freguesias, incluindo Corvo estatístico.'); }
   else {

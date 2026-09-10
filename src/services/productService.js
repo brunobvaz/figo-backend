@@ -29,8 +29,10 @@ async function findVisibleProduct(id) {
 }
 
 export const productService = {
-  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm = 25, municipalityCode, parishCode }) {
+  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm = 25, municipalityCode, parishCode, minPrice, maxPrice, sort }) {
     const filter = { status: { $ne: 'deleted' } };
+    if (minPrice !== undefined || maxPrice !== undefined) filter.price = { ...(minPrice !== undefined ? { $gte: minPrice } : {}), ...(maxPrice !== undefined ? { $lte: maxPrice } : {}) };
+    const ordering = sort === 'price_asc' ? { price: 1, _id: 1 } : sort === 'price_desc' ? { price: -1, _id: 1 } : { createdAt: -1, _id: -1 };
     if (category && category !== 'Todos') filter.category = category;
     if (sellerId) filter.seller = new mongoose.Types.ObjectId(sellerId);
     if (municipalityCode) filter['address.municipalityCode'] = municipalityCode;
@@ -43,7 +45,7 @@ export const productService = {
       filter.status = 'active';
       const [result] = await Product.aggregate([
         { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', maxDistance: radiusKm * 1000, spherical: true, query: filter } },
-        { $sort: { distanceMeters: 1, _id: 1 } },
+        { $sort: !sort || sort === 'distance' ? { distanceMeters: 1, _id: 1 } : ordering },
         { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0 } }], count: [{ $count: 'total' }] } }
       ]);
       await Product.populate(result.items, { path: 'seller', select: sellerFields });
@@ -51,7 +53,7 @@ export const productService = {
       return { items: result.items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
     }
     const [items, total] = await Promise.all([
-      Product.find(filter).populate('seller', sellerFields).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+      Product.find(filter).populate('seller', sellerFields).sort(ordering).skip((page - 1) * limit).limit(limit),
       Product.countDocuments(filter)
     ]);
     return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
@@ -69,7 +71,12 @@ export const productService = {
     const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
     if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes alterar os teus próprios produtos.');
-    changes = await resolveLocation(changes);
+    if ('locality' in changes && !('municipalityCode' in changes)) {
+      if (!product.address?.parishCode) throw new AppError(422, 'INVALID_LOCATION', 'Seleciona o concelho e a freguesia.');
+      const { locality, ...other } = changes;
+      changes = { ...other, address: { ...product.address.toObject(), locality },
+        location: `${locality}, ${product.address.parish}, ${product.address.municipality}` };
+    } else changes = await resolveLocation(changes);
     const previousImage = product.imageFilename;
     const imageFilename = await saveImage(imageFile);
     Object.assign(product, changes, imageFilename ? { imageFilename, image: null } : {});
