@@ -120,3 +120,29 @@ it('valida filtros de preço e ordenação', () => {
   expect(listProductsSchema.safeParse({ query: { minPrice: '0', maxPrice: '10', sort: 'price_asc' } }).success).toBe(true);
   expect(listProductsSchema.safeParse({ query: { latitude: 41, longitude: -8, sort: 'distance' } }).success).toBe(true);
 });
+
+it('filtra disponibilidade e unidade antes da contagem e paginação', async () => {
+  const seller = new mongoose.Types.ObjectId();
+  await Product.create([
+    { ...base, title: 'Disponível', location: 'A', seller },
+    { ...base, title: 'Vendido', location: 'B', seller, status: 'sold' },
+    { ...base, title: 'Frasco', location: 'C', seller, unit: '€/frasco' }
+  ]);
+  const parsed = listProductsSchema.parse({ query: { availableOnly: 'true', unit: '€/kg' } }).query;
+  expect(parsed.availableOnly).toBe(true);
+  const result = await productService.list(parsed);
+  expect(result.pagination.total).toBe(1); expect(result.items[0].title).toBe('Disponível');
+  expect(listProductsSchema.parse({ query: { availableOnly: 'false' } }).query.availableOnly).toBe(false);
+  expect(listProductsSchema.safeParse({ query: { unit: 'molho' } }).success).toBe(false);
+});
+it('qualquer distância não aplica silenciosamente o raio antigo de 25 km', async () => {
+  const seller = new mongoose.Types.ObjectId();
+  await Product.create([
+    { ...base, location: 'Perto', seller, geo: { type: 'Point', coordinates: [-8, 41] } },
+    { ...base, location: 'Longe', seller, geo: { type: 'Point', coordinates: [-9, 39] } }
+  ]);
+  const query = listProductsSchema.parse({ query: { latitude: 41, longitude: -8, sort: 'distance' } }).query;
+  expect(query.radiusKm).toBeUndefined();
+  expect((await productService.list(query)).pagination.total).toBe(2);
+  expect((await productService.list({ ...query, radiusKm: 25 })).pagination.total).toBe(1);
+});

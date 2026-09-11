@@ -29,8 +29,9 @@ async function findVisibleProduct(id) {
 }
 
 export const productService = {
-  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm = 25, municipalityCode, parishCode, minPrice, maxPrice, sort }) {
-    const filter = { status: { $ne: 'deleted' } };
+  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm, municipalityCode, parishCode, minPrice, maxPrice, sort, availableOnly, unit }) {
+    const filter = { status: availableOnly ? 'active' : { $ne: 'deleted' } };
+    if (unit) filter.unit = unit;
     if (minPrice !== undefined || maxPrice !== undefined) filter.price = { ...(minPrice !== undefined ? { $gte: minPrice } : {}), ...(maxPrice !== undefined ? { $lte: maxPrice } : {}) };
     const ordering = sort === 'price_asc' ? { price: 1, _id: 1 } : sort === 'price_desc' ? { price: -1, _id: 1 } : { createdAt: -1, _id: -1 };
     if (category && category !== 'Todos') filter.category = category;
@@ -44,7 +45,7 @@ export const productService = {
     if (latitude !== undefined && longitude !== undefined) {
       filter.status = 'active';
       const [result] = await Product.aggregate([
-        { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', maxDistance: radiusKm * 1000, spherical: true, query: filter } },
+        { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', ...(radiusKm !== undefined ? { maxDistance: radiusKm * 1000 } : {}), spherical: true, query: filter } },
         { $sort: !sort || sort === 'distance' ? { distanceMeters: 1, _id: 1 } : ordering },
         { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0 } }], count: [{ $count: 'total' }] } }
       ]);
