@@ -146,3 +146,16 @@ it('qualquer distância não aplica silenciosamente o raio antigo de 25 km', asy
   expect((await productService.list(query)).pagination.total).toBe(2);
   expect((await productService.list({ ...query, radiusKm: 25 })).pagination.total).toBe(1);
 });
+
+it('guarda sazonalidade e mantém compatibilidade com produtos/clientes antigos', async () => {
+  expect(createProductSchema.safeParse({ body: { ...base, ...location } }).success).toBe(true);
+  expect(updateProductSchema.safeParse({ body: { seasonality: 'autumn' } }).success).toBe(true);
+  expect(updateProductSchema.safeParse({ body: { seasonality: 'invalid' } }).success).toBe(false);
+  const seller = new mongoose.Types.ObjectId();
+  const product = await Product.create({ ...base, location: 'Chaves', seller });
+  expect(product.seasonality).toBe('all_year');
+  await productService.update(seller.toString(), product.id, { seasonality: 'autumn' });
+  expect((await Product.findById(product.id)).seasonality).toBe('autumn');
+  await productService.update(seller.toString(), product.id, { title: 'Novo título' });
+  expect((await Product.findById(product.id)).seasonality).toBe('autumn');
+});

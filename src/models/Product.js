@@ -6,6 +6,7 @@ const productSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0.01 },
   unit: { type: String, required: true, enum: ['€/kg', '€/unidade', '€/dúzia', '€/frasco', '€/caixa'] },
   category: { type: String, required: true, enum: ['Frutas', 'Legumes', 'Ovos', 'Mel', 'Laticínios', 'Padaria', 'Bebidas', 'Conservas', 'Outros'], index: true },
+  seasonality: { type: String, enum: ['all_year', 'spring', 'summer', 'autumn', 'winter'], default: 'all_year' },
   location: { type: String, required: true, trim: true, maxlength: 500 },
   address: { municipalityCode: String, parishCode: String, locality: String, municipality: String, parish: String, version: String },
   geo: { type: { type: String, enum: ['Point'] }, coordinates: { type: [Number], default: undefined } },

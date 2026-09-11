@@ -8,6 +8,7 @@ const productFields = {
   price: z.coerce.number().positive().max(1_000_000),
   unit: z.enum(['€/kg', '€/unidade', '€/dúzia', '€/frasco', '€/caixa']),
   category: z.enum(['Frutas', 'Legumes', 'Ovos', 'Mel', 'Laticínios', 'Padaria', 'Bebidas', 'Conservas', 'Outros']),
+  seasonality: z.enum(['all_year', 'spring', 'summer', 'autumn', 'winter']).optional(),
   ...locationFields,
   image: z.string().url().nullable().optional()
 };
