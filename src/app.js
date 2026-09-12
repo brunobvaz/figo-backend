@@ -1,4 +1,5 @@
 import express from 'express';
+import { imageDelivery } from './middleware/imageDelivery.js';
 import helmet from 'helmet';
 import cors from 'cors';
 import { env } from './config/env.js';
@@ -16,10 +17,12 @@ app.use(helmet());
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
 app.use(noSqlSanitize);
-app.use(globalLimiter);
+
 app.get('/health', (_req, res) => res.json({ success: true, data: { status: 'ok' } }));
-app.use('/uploads/avatars', express.static(avatarUploadDirectory, { fallthrough: false, maxAge: env.NODE_ENV === 'production' ? '1d' : 0 }));
-app.use('/uploads/products', express.static(productUploadDirectory, { fallthrough: false, maxAge: env.NODE_ENV === 'production' ? '1d' : 0 }));
+// Public, immutable assets must not consume the application's API request budget.
+app.use('/uploads/avatars', imageDelivery(avatarUploadDirectory));
+app.use('/uploads/products', imageDelivery(productUploadDirectory));
+app.use(globalLimiter);
 app.use('/api/v1', routes);
 app.use(notFound);
 app.use(errorHandler);

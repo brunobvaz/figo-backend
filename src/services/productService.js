@@ -1,3 +1,4 @@
+import { warmImageVariants, removeImageVariants } from './imageService.js';
 import mongoose from 'mongoose';
 import { resolveLocation } from './locationService.js';
 import { Product } from '../models/Product.js';
@@ -16,10 +17,15 @@ async function saveImage(file) {
   await fs.mkdir(productUploadDirectory, { recursive: true });
   const filename = `${crypto.randomUUID()}${extensions[file.mimetype]}`;
   await fs.writeFile(path.join(productUploadDirectory, filename), file.buffer);
+  // Warm small variants after upload; concurrent image requests share the same work.
+  warmImageVariants(productUploadDirectory, filename, [160, 640, 1280]).catch(() => {});
   return filename;
 }
 async function removeImage(filename) {
-  if (filename) await fs.unlink(path.join(productUploadDirectory, path.basename(filename))).catch(() => {});
+  if (filename) {
+    await fs.unlink(path.join(productUploadDirectory, path.basename(filename))).catch(() => {});
+    await removeImageVariants(productUploadDirectory, path.basename(filename));
+  }
 }
 
 async function findVisibleProduct(id) {

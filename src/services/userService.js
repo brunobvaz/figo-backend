@@ -1,3 +1,4 @@
+import { warmImageVariants, removeImageVariants } from './imageService.js';
 import { resolveUserLocation } from './locationService.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
@@ -18,8 +19,10 @@ export const userService = {
     const previousFilename = user.avatarFilename;
     user.avatarFilename = filename;
     await user.save();
+    warmImageVariants(avatarUploadDirectory, filename, [160, 320]).catch(() => {});
     if (previousFilename && previousFilename !== filename) {
       await fs.unlink(path.join(avatarUploadDirectory, path.basename(previousFilename))).catch(() => {});
+      await removeImageVariants(avatarUploadDirectory, path.basename(previousFilename));
     }
     return user.toJSON();
   },
