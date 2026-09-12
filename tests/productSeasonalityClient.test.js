@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { currentProductSeason, isProductInSeason, SEASONALITY_OPTIONS } from '../../mobile/src/utils/productSeasonality.js';
+import { currentProductSeason, isExplicitlyInSeason, isProductInSeason, SEASONALITY_OPTIONS } from '../../mobile/src/utils/productSeasonality.js';
 import { discoveryProducts } from '../../mobile/src/utils/homeDiscovery.js';
 
 it('define as cinco opções sem valores repetidos', () => {
@@ -24,4 +24,16 @@ it('a descoberta substitui flags temporárias pela sazonalidade guardada', () =>
   const input = [{ id: 'a', seasonal: true, seasonality: other }, { id: 'b', seasonal: false, seasonality: current }];
   expect(discoveryProducts(input).map(x => x.seasonal)).toEqual([false, true]);
   expect(input[0].seasonal).toBe(true);
+});
+
+it('exclui todo o ano da seleção editorial sem alterar a disponibilidade geral', () => {
+  const allYear = { seasonality: 'all_year', seasonal: true };
+  expect(isProductInSeason(allYear)).toBe(true);
+  expect(isExplicitlyInSeason(allYear, 'autumn')).toBe(false);
+  expect(isExplicitlyInSeason({}, 'autumn')).toBe(false);
+  expect(isExplicitlyInSeason({ seasonality: 'autumn' }, 'autumn')).toBe(true);
+  expect(isExplicitlyInSeason({ seasons: ['all_year'] }, 'autumn')).toBe(false);
+  expect(isExplicitlyInSeason({ seasons: ['all_year', 'autumn'] }, 'autumn')).toBe(false);
+  expect(isExplicitlyInSeason({ seasons: ['autumn', 'winter'] }, 'autumn')).toBe(true);
+  expect(isExplicitlyInSeason({ seasonality: 'summer' }, 'autumn')).toBe(false);
 });

@@ -5,13 +5,22 @@ const userSchema = new mongoose.Schema({
   firstName: { type: String, trim: true },
   lastName: { type: String, trim: true },
   email: { type: String, required: true, trim: true, lowercase: true, unique: true, index: true },
-  phone: { type: String, required: true, trim: true, unique: true, index: true },
+  phone: { type: String, trim: true },
   avatarFilename: { type: String, default: null },
   passwordHash: { type: String, required: true, select: false },
-  roles: { type: [String], enum: ['buyer', 'seller', 'admin'], required: true },
+  roles: { type: [String], enum: ['buyer', 'seller', 'admin'], default: () => ['buyer', 'seller'], required: true },
+  // Onboarding analytics only; never used for authorization.
+  usageIntent: { type: String, enum: ['buy', 'sell', 'both'] },
   location: {
-    city: { type: String, required: true, trim: true },
-    postalCode: { type: String, required: true, trim: true }
+    municipalityCode: String,
+    municipality: String,
+    parishCode: String,
+    parish: String,
+    version: String,
+    geo: { type: { type: String, enum: ['Point'] }, coordinates: [Number] },
+    // Retained for existing accounts and older clients.
+    city: { type: String, trim: true },
+    postalCode: { type: String, trim: true }
   },
   emailVerified: { type: Boolean, default: false },
   phoneVerified: { type: Boolean, default: false },
@@ -22,6 +31,8 @@ const userSchema = new mongoose.Schema({
   marketingConsentAt: { type: Date, default: null },
   lastLoginAt: { type: Date, default: null }
 }, { timestamps: true });
+
+userSchema.index({ phone: 1 }, { name: 'phone_optional_unique', unique: true, partialFilterExpression: { phone: { $type: 'string' } } });
 
 userSchema.set('toJSON', {
   transform(_doc, ret) {

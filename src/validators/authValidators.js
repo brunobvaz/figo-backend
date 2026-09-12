@@ -1,3 +1,4 @@
+import { userLocationSchema } from './userLocation.js';
 import { z } from 'zod';
 
 const password = z.string().min(10).max(128)
@@ -15,13 +16,12 @@ export const registerSchema = z.object({
     firstName: z.string().trim().min(2).max(60),
     lastName: z.string().trim().min(2).max(80),
     email,
-    phone,
+    phone: phone.optional(),
     password,
-    roles,
-    location: z.object({
-      city: z.string().trim().min(2).max(100),
-      postalCode: z.string().trim().regex(/^\d{4}-\d{3}$/, 'Código postal inválido.')
-    }),
+    // Accepted for older clients, but ignored when assigning permissions.
+    roles: roles.optional(),
+    usageIntent: z.enum(['buy', 'sell', 'both']).optional(),
+    location: userLocationSchema,
     confirmAdult: z.literal(true, { error: 'É necessário confirmar a maioridade.' }),
     acceptTerms: z.literal(true, { error: 'É necessário aceitar os termos.' }),
     marketingConsent: z.boolean().default(false)

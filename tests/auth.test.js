@@ -1,3 +1,4 @@
+import { migrateOptionalPhone } from '../scripts/migrate-optional-phone.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import argon2 from 'argon2';
@@ -7,6 +8,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../src/app.js';
+import { Product } from '../src/models/Product.js';
 import { User } from '../src/models/User.js';
 import { Session } from '../src/models/Session.js';
 import { OneTimeToken } from '../src/models/OneTimeToken.js';
@@ -43,7 +45,7 @@ describe('POST /auth/register', () => {
   it('cria um utilizador sem expor o hash', async () => {
     const response = await register();
     expect(response.status).toBe(201);
-    expect(response.body.data.user).toMatchObject({ name: 'Manuel Silva', firstName: 'Manuel', lastName: 'Silva', email: validRegistration.email, phone: '+351912345678', roles: ['buyer'] });
+    expect(response.body.data.user).toMatchObject({ name: 'Manuel Silva', firstName: 'Manuel', lastName: 'Silva', email: validRegistration.email, phone: '+351912345678', roles: ['buyer', 'seller'] });
     expect(response.body.data.verification).toMatchObject({ email: validRegistration.email });
     expect(response.body.data.verification.devCode).toBeUndefined();
     expect(response.body.data.user.passwordHash).toBeUndefined();
@@ -52,6 +54,37 @@ describe('POST /auth/register', () => {
   it('rejeita email duplicado já verificado', async () => { await register(); await verifyUserInDatabase(); expect((await register({ phone: '913345678' })).status).toBe(409); });
   it('permite repetir o registo ainda não verificado e gera novo desafio', async () => { await register(); const response = await register(); expect(response.status).toBe(201); expect(response.body.data.verification.challengeId).toBeTruthy(); expect(await User.countDocuments()).toBe(1); });
   it('rejeita telefone duplicado', async () => { await register(); expect((await register({ email: 'outro@email.pt' })).status).toBe(409); });
+  it.each([undefined, 'buy', 'sell', 'both'])('aceita o novo registo sem telefone com intenção %s', async usageIntent => {
+    const response = await register({ phone: undefined, roles: undefined, usageIntent,
+      location: { municipalityCode: '0407', parishCode: '040701' } });
+    expect(response.status).toBe(201);
+    expect(response.body.data.user.roles).toEqual(['buyer', 'seller']);
+    expect(response.body.data.user.phone).toBeUndefined();
+    const user = await User.findOne();
+    expect(user.usageIntent).toBe(usageIntent);
+    expect(user.location.toObject()).toMatchObject({ municipalityCode: '0407', municipality: 'Mirandela',
+      parishCode: '040701', parish: 'Abambres', geo: { type: 'Point', coordinates: [-7.18, 41.48] } });
+    await verifyUserInDatabase();
+    const auth = (await login()).body.data;
+    const product = { title: 'Tomates', description: 'Tomates frescos da horta.', price: 2,
+      unit: '€/kg', category: 'Legumes', ...productLocation };
+    expect((await request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`).send(product)).status).toBe(201);
+  });
+  it('aceita várias contas sem telefone', async () => {
+    expect((await register({ phone: undefined })).status).toBe(201);
+    expect((await register({ phone: undefined, email: 'segunda@email.pt' })).status).toBe(201);
+  });
+  it('preserva o telefone antigo ao repetir registo sem telefone', async () => {
+    await register();
+    expect((await register({ phone: undefined })).status).toBe(201);
+    expect((await User.findOne()).phone).toBe('+351912345678');
+  });
+  it('rejeita intenção inválida e localização incompleta ou incompatível', async () => {
+    expect((await register({ usageIntent: 'admin' })).status).toBe(422);
+    expect((await register({ location: { municipalityCode: '0407' } })).status).toBe(422);
+    expect((await register({ location: { municipalityCode: '0407', parishCode: '999901' } })).status).toBe(422);
+    expect((await register({ acceptTerms: false })).status).toBe(422);
+  });
   it('rejeita password fraca', async () => { expect((await register({ password: 'fraca' })).status).toBe(422); });
   it('não permite admin no endpoint público', async () => { expect((await register({ roles: ['admin'] })).status).toBe(422); });
   it('exige confirmação de maioridade', async () => { expect((await register({ confirmAdult: false })).status).toBe(422); });
@@ -59,7 +92,7 @@ describe('POST /auth/register', () => {
 
 describe('verificação de email por OTP', () => {
   it('verifica o email e cria uma sessão', async () => {
-    const registration = await register();
+    const registration = await register({ phone: undefined, roles: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
     const { challengeId } = registration.body.data.verification;
     const code = '384921';
     await EmailOtp.updateOne({ _id: challengeId }, { codeHash: hashOtp(challengeId, code, process.env.EMAIL_OTP_SECRET) });
@@ -70,7 +103,7 @@ describe('verificação de email por OTP', () => {
   });
 
   it('rejeita um código incorreto e conta a tentativa', async () => {
-    const registration = await register();
+    const registration = await register({ phone: undefined, roles: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
     const { challengeId } = registration.body.data.verification;
     expect((await request(app).post('/api/v1/auth/verify-email').send({ challengeId, code: '000000' })).status).toBe(400);
     expect((await EmailOtp.findById(challengeId)).attempts).toBe(1);
@@ -186,11 +219,11 @@ describe('produtos', () => {
     expect((await request(app).get(`/api/v1/products/${id}`)).status).toBe(404);
   });
 
-  it('impede compradores de criar produtos', async () => {
+  it('permite publicar sem escolher perfil de vendedor', async () => {
     await register();
     await verifyUserInDatabase();
     const auth = (await login()).body.data;
-    expect((await request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`).send(product)).status).toBe(403);
+    expect((await request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`).send(product)).status).toBe(201);
   });
 });
 
@@ -210,6 +243,31 @@ describe('chat entre utilizadores', () => {
     const product = await request(app).post('/api/v1/products').set(headers(sellerAuth)).send({ title: 'Tomates', description: 'Tomates frescos da horta.', price: 2, unit: '€/kg', category: 'Legumes', ...productLocation });
     expect(product.status).toBe(201);
     productId = product.body.data.id;
+  });
+  it('mantém conversas distintas para produtos diferentes entre as mesmas pessoas', async () => {
+    const first = (await open()).body.data;
+    const created = await request(app).post('/api/v1/products').set(headers(sellerAuth)).send({ title: 'Mel caseiro', description: 'Mel fresco da produção local.', price: 7.4, unit: '€/frasco', category: 'Mel', ...productLocation });
+    expect(created.status).toBe(201);
+    const second = await request(app).post('/api/v1/conversations').set(headers(buyerAuth)).send({ productId: created.body.data.id });
+    expect(second.body.data.id).not.toBe(first.id);
+    const details = await request(app).get(`/api/v1/conversations/${second.body.data.id}`).set(headers(buyerAuth));
+    expect(details.body.data).toMatchObject({ productId: created.body.data.id, productTitle: 'Mel caseiro' });
+    const firstDetails = await request(app).get(`/api/v1/conversations/${first.id}`).set(headers(buyerAuth));
+    expect(firstDetails.body.data.productId).toBe(productId);
+  });
+  it.each(['sold', 'deleted'])('mantém contexto, lista e mensagens com produto %s', async status => {
+    const id = (await open()).body.data.id;
+    await Product.updateOne({ _id: productId }, { status });
+    const detail = await request(app).get(`/api/v1/conversations/${id}`).set(headers(buyerAuth));
+    expect(detail.status).toBe(200);
+    expect(detail.body.data).toMatchObject({ productId, productTitle: 'Tomates' });
+    expect((await send(id, buyerAuth, 'Ainda podemos falar?')).status).toBe(200);
+    const messages = await request(app).get(`/api/v1/conversations/${id}/messages`).set(headers(sellerAuth));
+    expect(messages.body.data.items[0].text).toBe('Ainda podemos falar?');
+    const conversations = await request(app).get('/api/v1/conversations').set(headers(sellerAuth));
+    expect(conversations.body.data.items[0].productId).toBe(productId);
+    const product = await request(app).get(`/api/v1/products/${productId}`);
+    expect(product.status).toBe(status === 'deleted' ? 404 : 200);
   });
   it('reutiliza a conversa, envia nos dois sentidos e mantém contadores separados', async () => {
     const openings = await Promise.all([open(), open()]);
@@ -265,5 +323,61 @@ describe('chat entre utilizadores', () => {
     const page3 = (await request(app).get(`/api/v1/conversations/${id}/messages?limit=2&before=${page2.nextCursor}`).set(headers(sellerAuth))).body.data;
     expect(page3.items.map((item) => item.text)).toEqual(['Mensagem 0']);
     expect(page3.nextCursor).toBeNull();
+  });
+});
+
+
+describe('compatibilidade com contas e índices existentes', () => {
+  it('migra o índice sem perder dados e permite repetir a migration', async () => {
+    const db = mongoose.connection.getClient().db('optional-phone-migration-test');
+    try {
+      const users = db.collection('users');
+      await users.createIndex({ phone: 1 }, { unique: true, name: 'phone_1' });
+      await users.insertOne({ email: 'antigo@email.pt', phone: '+351912345678' });
+      await migrateOptionalPhone(db);
+      await migrateOptionalPhone(db);
+      await users.insertMany([{ email: 'novo1@email.pt' }, { email: 'novo2@email.pt' }]);
+      expect(await users.countDocuments()).toBe(3);
+      expect((await users.findOne({ email: 'antigo@email.pt' })).phone).toBe('+351912345678');
+      await expect(users.insertOne({ phone: '+351912345678' })).rejects.toMatchObject({ code: 11000 });
+      expect((await users.indexes()).map(index => index.name)).not.toContain('phone_1');
+    } finally { await db.dropDatabase(); }
+  });
+  it('mantém login, localização e roles de uma conta antiga', async () => {
+    await register();
+    await User.updateOne({}, { emailVerified: true, roles: ['buyer'] });
+    const response = await login();
+    expect(response.status).toBe(200);
+    expect(response.body.data.user).toMatchObject({ roles: ['buyer'], phone: '+351912345678',
+      location: { city: 'Mirandela', postalCode: '5370-000' } });
+  });
+});
+
+describe('edição da localização do perfil', () => {
+  const edit = async location => {
+    await register(); await verifyUserInDatabase();
+    const auth = (await login()).body.data;
+    return request(app).patch('/api/v1/users/me').set('Authorization', `Bearer ${auth.accessToken}`).send({ location });
+  };
+  it('resolve códigos em nomes e coordenadas e preserva os restantes dados', async () => {
+    const response = await edit({ municipalityCode: '0407', parishCode: '040701' });
+    expect(response.status).toBe(200);
+    expect(response.body.data.location).toMatchObject({ municipalityCode: '0407', parishCode: '040701', municipality: 'Mirandela', parish: 'Abambres', geo: { type: 'Point', coordinates: [-7.18, 41.48] } });
+    expect(response.body.data.location.postalCode).toBeUndefined();
+    expect((await User.findOne()).phone).toBe('+351912345678');
+    const auth = (await login()).body.data;
+    expect(auth.user.location.parishCode).toBe('040701');
+  });
+  it('rejeita freguesia de outro concelho sem alterar o perfil', async () => {
+    expect((await edit({ municipalityCode: '0407', parishCode: '999901' })).status).toBe(422);
+    expect((await User.findOne()).location.city).toBe('Mirandela');
+  });
+  it('rejeita localização incompleta', async () => {
+    expect((await edit({ municipalityCode: '0407' })).status).toBe(422);
+  });
+  it('mantém compatibilidade com pedidos antigos', async () => {
+    const response = await edit({ city: 'Chaves', postalCode: '5400-629' });
+    expect(response.status).toBe(200);
+    expect(response.body.data.location.city).toBe('Chaves');
   });
 });

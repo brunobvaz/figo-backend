@@ -1,3 +1,4 @@
+import { resolveUserLocation } from './locationService.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
 import fs from 'node:fs/promises';
@@ -6,6 +7,7 @@ import { avatarUploadDirectory } from '../config/uploads.js';
 
 export const userService = {
   async updateMe(userId, changes) {
+    if (changes.location) changes = { ...changes, location: await resolveUserLocation(changes.location) };
     const user = await User.findByIdAndUpdate(userId, { $set: changes }, { new: true, runValidators: true });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'Utilizador não encontrado.');
     return user.toJSON();

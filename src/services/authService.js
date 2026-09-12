@@ -1,3 +1,4 @@
+import { resolveUserLocation } from './locationService.js';
 import { PushDevice } from '../models/PushDevice.js';
 import argon2 from 'argon2';
 import mongoose from 'mongoose';
@@ -52,24 +53,26 @@ async function createEmailOtp(user) {
 export const authService = {
   async register(input) {
     const email = normalizeEmail(input.email);
-    const phone = normalizePhone(input.phone);
+    const phone = input.phone ? normalizePhone(input.phone) : undefined;
+    const location = await resolveUserLocation(input.location);
     const name = `${input.firstName} ${input.lastName}`.trim();
-    const [existingUser, phoneOwner] = await Promise.all([User.findOne({ email }).select('+passwordHash'), User.findOne({ phone })]);
+    const [existingUser, phoneOwner] = await Promise.all([User.findOne({ email }).select('+passwordHash'), phone ? User.findOne({ phone }) : null]);
     if (existingUser?.emailVerified || (existingUser && existingUser.status !== 'active')) throw new AppError(409, 'USER_EMAIL_EXISTS', 'Já existe uma conta com este email.');
     if (phoneOwner && phoneOwner.id !== existingUser?.id) throw new AppError(409, 'USER_PHONE_EXISTS', 'Já existe uma conta com este telefone.');
     const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
     let user;
     if (existingUser) {
       Object.assign(existingUser, {
-        name, firstName: input.firstName, lastName: input.lastName, phone, passwordHash, roles: input.roles,
-        location: input.location, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
+        name, firstName: input.firstName, lastName: input.lastName, ...(phone ? { phone } : {}), passwordHash,
+        roles: [...new Set([...existingUser.roles, 'buyer', 'seller'])], usageIntent: input.usageIntent,
+        location, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
         marketingConsent: input.marketingConsent,
         marketingConsentAt: input.marketingConsent ? new Date() : null
       });
       user = await existingUser.save();
     } else {
       user = await User.create({
-        ...input, name, email, phone, passwordHash, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
+        ...input, name, email, phone, passwordHash, location, roles: ['buyer', 'seller'], termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
         marketingConsentAt: input.marketingConsent ? new Date() : null
       });
     }

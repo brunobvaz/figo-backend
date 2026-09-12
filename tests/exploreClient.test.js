@@ -27,10 +27,10 @@ it('limpa filtros sem alterar a vista nem o objeto original', () => {
   expect(filters.query).toBe('mel');
 });
 it('aplica os mesmos destaques do Home sem destacar a primeira linha de cada pesquisa', () => {
-  const items = [{ id: 'b' }, { id: 'a' }, { id: 'c', featured: false, seasonal: true }];
+  const items = [{ id: 'b' }, { id: 'a' }, { id: 'c', featured: false, seasonal: true, seasonality: 'autumn' }];
   const editorial = [{ id: 'a', featured: true }, { id: 'b', featured: false }, { id: 'c', featured: true }];
   expect(applyEditorialFilters(items, { featured: true }, editorial).map(x => x.id)).toEqual(['a']);
-  expect(applyEditorialFilters(items, { seasonal: true }, editorial).map(x => x.id)).toEqual(['c']);
+  expect(applyEditorialFilters(items, { season: 'autumn' }, editorial).map(x => x.id)).toEqual(['c']);
   expect(applyEditorialFilters([], {}, editorial)).toEqual([]);
   expect(items[0].featured).toBeUndefined();
 });
@@ -41,4 +41,11 @@ it('agrupa produtos coincidentes sem inventar pins para locais desconhecidos', (
   expect(markers).toHaveLength(1); expect(markers[0].coordinate).toEqual({ latitude: 41, longitude: -8 });
   expect(markers[0].products.map(x => x.id)).toEqual(['1', '2']);
   expect(parishMarkers([], parishes)).toEqual([]);
+});
+
+it('o atalho Da época exclui todo o ano mesmo com metadados antigos', () => {
+  const items = [{ id: 'all', seasonality: 'all_year', seasonal: true }, { id: 'autumn', seasonality: 'autumn' }, { id: 'summer', seasonality: 'summer' }];
+  expect(applyEditorialFilters(items, { season: 'autumn' }, []).map(item => item.id)).toEqual(['autumn']);
+  expect(hasExploreFilters({ season: 'autumn' })).toBe(true);
+  expect(resetExploreFilters({ season: 'autumn' })).toEqual({ viewMode: 'list' });
 });

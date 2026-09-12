@@ -23,3 +23,9 @@ export async function resolveLocation(input) {
   return { ...other, address: { municipalityCode, parishCode, locality, municipality: municipality.name, parish: parish.name, version },
     location: `${locality}, ${parish.name}, ${municipality.name}`, geo: { type: 'Point', coordinates: [point.longitude, point.latitude] }, locationSource: 'parish' };
 }
+
+export async function resolveUserLocation(location) {
+  if (!location.municipalityCode) return location;
+  const resolved = await resolveLocation(location);
+  return { ...resolved.address, geo: resolved.geo, city: `${resolved.address.parish}, ${resolved.address.municipality}` };
+}
