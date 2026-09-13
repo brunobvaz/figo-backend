@@ -24,7 +24,7 @@ beforeAll(async () => {
 afterAll(async () => { await mongoose.disconnect(); await mongo.stop(); });
 beforeEach(async () => {
   await Promise.all(Object.values(mongoose.connection.collections).map((collection) => collection.deleteMany({})));
-  const makeUser = (email, phone) => User.create({ name: 'Teste Push', firstName: 'Teste', lastName: 'Push', email, phone, passwordHash: 'unused', emailVerified: true, status: 'active', roles: ['buyer'], location: { city: 'Lisboa', postalCode: '1000-001' }, termsAcceptedAt: new Date(), ageConfirmedAt: new Date() });
+  const makeUser = (email, phone) => User.create({ name: 'Teste Push', firstName: 'Teste', lastName: 'Push', email, phone, passwordHash: 'unused', emailVerified: true, status: 'active', location: { city: 'Lisboa', postalCode: '1000-001' }, termsAcceptedAt: new Date(), ageConfirmedAt: new Date() });
   sender = await makeUser('sender@push.test', '+351911111111');
   recipient = await makeUser('recipient@push.test', '+351922222222');
   session = await Session.create({ userId: recipient.id, refreshTokenHash: 'unused', expiresAt: new Date(Date.now() + 86400000) });

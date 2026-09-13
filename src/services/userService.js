@@ -25,10 +25,5 @@ export const userService = {
       await removeImageVariants(avatarUploadDirectory, path.basename(previousFilename));
     }
     return user.toJSON();
-  },
-  async enableSeller(userId) {
-    const user = await User.findByIdAndUpdate(userId, { $addToSet: { roles: 'seller' } }, { new: true, runValidators: true });
-    if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'Utilizador não encontrado.');
-    return user.toJSON();
   }
 };

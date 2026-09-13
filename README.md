@@ -98,7 +98,7 @@ Registo:
 ```bash
 curl -X POST http://localhost:3000/api/v1/auth/register \
   -H 'Content-Type: application/json' \
-  -d '{"firstName":"Manuel","lastName":"Silva","email":"manuel@email.pt","phone":"912345678","password":"Password!123","roles":["buyer"],"location":{"city":"Mirandela","postalCode":"5370-000"},"confirmAdult":true,"acceptTerms":true,"marketingConsent":false}'
+  -d '{"firstName":"Manuel","lastName":"Silva","email":"manuel@email.pt","phone":"912345678","password":"Password!123","usageIntent":"buy","location":{"city":"Mirandela","postalCode":"5370-000"},"confirmAdult":true,"acceptTerms":true,"marketingConsent":false}'
 ```
 
 Login:
@@ -193,3 +193,57 @@ As coleções `pushdevices` e `pushdeliveries` ficam na mesma base MongoDB e os 
 Reenvios da mesma mensagem não criam novas entregas. Porém, uma falha de rede depois de o Expo aceitar o pedido, ou um reinício antes de guardar o ticket, pode provocar uma repetição externa. Não se promete entrega exatamente uma vez nem entrega garantida ao dispositivo. `status: done` com recibo positivo confirma a aceitação pelo fornecedor, não que o utilizador viu a notificação.
 
 Testes: `npm test` utiliza respostas simuladas do Expo e nunca envia notificações reais. Erros permanentes ficam em `pushdeliveries.lastError` e nos logs, sem tokens ou texto das mensagens.
+
+### Disponibilidade e publicação de anúncios
+
+O contrato reutiliza `status`: `active` = disponível, `sold` = esgotado;
+`deleted` continua reservado à remoção. `is_active` controla a publicação
+independentemente da disponibilidade. POST e PATCH aceitam `status` e
+`is_active` (boolean JSON ou `true`/`false` em multipart). Quando omitidos na
+criação, os defaults são `active` e `true`. O formulário de criação não expõe
+estes controlos; o proprietário gere-os no detalhe do anúncio.
+
+`GET /products` nunca inclui inativos, mesmo com `sellerId`. Esgotados ativos
+continuam visíveis, incluindo na pesquisa por distância, salvo `availableOnly=true`.
+`GET /products/mine` exige autenticação e pagina os anúncios do utilizador,
+incluindo inativos. O detalhe de um inativo devolve 404 a terceiros; o proprietário
+pode consultá-lo com autenticação. PATCH continua limitado ao vendedor proprietário.
+
+Executar uma vez no ambiente de destino: `node scripts/migrate-product-activation.js`.
+A migração é idempotente, preenche apenas `is_active` ausente e preserva estados
+existentes. Os documentos antigos também são tratados como ativos antes da migração.
+
+### Colheita pelo comprador
+
+POST/PATCH de produtos aceitam `self_harvest` (boolean JSON ou `true`/`false`
+em multipart), desligado por defeito. Apenas Frutas e Legumes permitem colheita;
+ao guardar outra categoria, o backend força o campo a `false`, mesmo que o
+cliente envie `true`. Anúncios antigos sem o campo são tratados como desligados.
+O formulário de criação/edição mostra o interruptor apenas nas categorias elegíveis;
+o detalhe apresenta a informação apenas quando a opção está ativa.
+
+### OTP por email (Resend)
+
+Em bench e produção configurar `NODE_ENV=production`, `RESEND_API_KEY` e
+`EMAIL_FROM=Figo <nao-responder@mail.figo-app.com>` no backend. As credenciais
+são obrigatórias ao arrancar em produção; nunca colocá-las no frontend.
+O domínio do remetente deve estar verificado no Resend. A integração usa a API
+HTTPS do Resend, com timeout de 10 segundos, sem dependências adicionais.
+Desenvolvimento (`NODE_ENV=development`) devolve `devCode`, que a app só mostra
+com `__DEV__`; testes não enviam emails. Produção nunca devolve nem regista o OTP.
+A resposta inclui `resendAfterSeconds` para o contador da app. Uma falha de envio
+remove o novo desafio e preserva o anterior para permitir nova tentativa.
+Publicar estas alterações no Render e atualizar a app para obter o contador e
+as mensagens novas. Configurar as variáveis sem publicar o código não ativa o envio.
+Esta integração cobre verificação OTP; recuperação de password permanece separada.
+
+### Perfil único
+
+Todas as contas autenticadas podem comprar e vender. `usageIntent` (`buy`,
+`sell`, `both`) é apenas analytics, sem impacto nas permissões. A API mantém
+as verificações de autenticação, estado da conta e propriedade dos anúncios.
+O antigo campo de permissões e o endpoint `/users/me/enable-seller` foram
+retirados do contrato: publicar backend e app atualizados em conjunto.
+Executar `node scripts/migrate-unified-profile.js` para limpar o campo antigo
+nos documentos existentes. A migração é idempotente e preserva `usageIntent`.
+Tokens antigos continuam válidos até expirarem; as claims antigas são ignoradas.

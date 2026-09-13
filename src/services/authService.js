@@ -14,7 +14,7 @@ import { tokenService } from './tokenService.js';
 import { emailService } from './emailService.js';
 
 const publicUser = (user) => ({
-  id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, avatarFilename: user.avatarFilename, roles: user.roles,
+  id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, avatarFilename: user.avatarFilename,
   location: user.location, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified,
   status: user.status, createdAt: user.createdAt
 });
@@ -36,16 +36,19 @@ async function createOneTimeToken(user, type, minutes) {
 }
 
 async function createEmailOtp(user) {
-  await EmailOtp.deleteMany({ userId: user._id, usedAt: null });
   const challenge = new EmailOtp({ userId: user._id, codeHash: 'pending', expiresAt: new Date(Date.now() + env.EMAIL_OTP_EXPIRES_IN_MINUTES * 60_000), lastSentAt: new Date() });
   const code = createOtp();
   challenge.codeHash = hashOtp(challenge.id, code, env.EMAIL_OTP_SECRET);
   await challenge.save();
-  await emailService.sendEmailVerification(user.email, code);
+  try { await emailService.sendEmailVerification(user.email, code); }
+  catch (error) { await EmailOtp.deleteOne({ _id: challenge._id }); throw error; }
+  // Keep the previous challenge usable if delivery fails.
+  await EmailOtp.deleteMany({ userId: user._id, usedAt: null, _id: { $lt: challenge._id } });
   return {
     challengeId: challenge.id,
     email: user.email,
     expiresInSeconds: env.EMAIL_OTP_EXPIRES_IN_MINUTES * 60,
+    resendAfterSeconds: env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS,
     ...(env.NODE_ENV === 'development' ? { devCode: code } : {})
   };
 }
@@ -64,7 +67,7 @@ export const authService = {
     if (existingUser) {
       Object.assign(existingUser, {
         name, firstName: input.firstName, lastName: input.lastName, ...(phone ? { phone } : {}), passwordHash,
-        roles: [...new Set([...existingUser.roles, 'buyer', 'seller'])], usageIntent: input.usageIntent,
+        usageIntent: input.usageIntent,
         location, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
         marketingConsent: input.marketingConsent,
         marketingConsentAt: input.marketingConsent ? new Date() : null
@@ -72,7 +75,7 @@ export const authService = {
       user = await existingUser.save();
     } else {
       user = await User.create({
-        ...input, name, email, phone, passwordHash, location, roles: ['buyer', 'seller'], termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
+        ...input, name, email, phone, passwordHash, location, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(),
         marketingConsentAt: input.marketingConsent ? new Date() : null
       });
     }

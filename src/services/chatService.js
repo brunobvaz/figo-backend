@@ -20,7 +20,7 @@ export const chatService = {
     return { id: conversation.id, productId: String(conversation.product), productTitle: conversation.productTitle, participant: { id: other?.id, name: other?.name || 'Utilizador indisponível', avatarFilename: other?.avatarFilename } };
   },
   async open(userId, productId) {
-    const product = await Product.findOne({ _id: productId, status: { $ne: 'deleted' } });
+    const product = await Product.findOne({ _id: productId, is_active: { $ne: false }, status: { $ne: 'deleted' } });
     if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (String(product.seller) === userId) throw new AppError(422, 'SELF_CONVERSATION', 'Não podes iniciar uma conversa contigo próprio.');
     const key = { product: product.id, buyer: userId, seller: product.seller };

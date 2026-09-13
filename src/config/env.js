@@ -4,6 +4,8 @@ import { z } from 'zod';
 const durationPattern = /^\d+(ms|s|m|h|d)$/;
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  RESEND_API_KEY: z.string().trim().min(1).optional(),
+  EMAIL_FROM: z.string().trim().min(1).optional(),
   PUSH_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPO_ACCESS_TOKEN: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -29,6 +31,12 @@ const schema = z.object({
   EMAIL_OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   EMAIL_OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
   APP_URL: z.string().url().default('http://localhost:8081')
+}).superRefine((value, ctx) => {
+  if (value.NODE_ENV === 'production') {
+    for (const field of ['RESEND_API_KEY', 'EMAIL_FROM']) {
+      if (!value[field]) ctx.addIssue({ code: 'custom', path: [field], message: 'Obrigatório em bench/produção.' });
+    }
+  }
 });
 
 const parsed = schema.safeParse(process.env);

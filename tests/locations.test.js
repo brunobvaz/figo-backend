@@ -44,7 +44,7 @@ it('ordena e pagina por distância, omite GPS e exclui vendidos/sem coordenadas'
     { ...base, location: 'Mais longe', seller, geo: { type: 'Point', coordinates: [-8.01, 41] } },
     { ...base, location: 'Vendido', seller, status: 'sold', geo: { type: 'Point', coordinates: [-8, 41] } }
   ]);
-  const q = { latitude: 41, longitude: -8, radiusKm: 5, page: 1, limit: 1 };
+  const q = { latitude: 41, longitude: -8, radiusKm: 5, page: 1, limit: 1, availableOnly: true };
   const first = await productService.list(q);
   expect(first.pagination.total).toBe(2); expect(first.items[0].location).toBe('Perto'); expect(first.items[0].geo).toBeUndefined(); expect(first.items[0].id).toBeTruthy();
   expect((await productService.list({ ...q, page: 2 })).items[0].location).toBe('Mais longe');

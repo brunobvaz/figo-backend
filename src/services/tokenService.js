@@ -7,7 +7,7 @@ function sign(payload, secret, expiresIn) {
 
 export const tokenService = {
   generateAccessToken(user, sessionId) {
-    return sign({ sub: user.id, roles: user.roles, sid: sessionId }, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRES_IN);
+    return sign({ sub: user.id, sid: sessionId }, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRES_IN);
   },
   generateRefreshToken(user, sessionId) {
     return sign({ sub: user.id, sid: sessionId, type: 'refresh' }, env.JWT_REFRESH_SECRET, env.JWT_REFRESH_EXPIRES_IN);

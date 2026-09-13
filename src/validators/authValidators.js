@@ -9,7 +9,6 @@ const password = z.string().min(10).max(128)
 
 const email = z.string().trim().toLowerCase().email();
 const phone = z.string().trim().regex(/^(?:(?:\+|00)351)?[29]\d{8}$/, 'Telefone português inválido.');
-const roles = z.array(z.enum(['buyer', 'seller'])).min(1).transform((items) => [...new Set(items)]);
 
 export const registerSchema = z.object({
   body: z.object({
@@ -18,8 +17,6 @@ export const registerSchema = z.object({
     email,
     phone: phone.optional(),
     password,
-    // Accepted for older clients, but ignored when assigning permissions.
-    roles: roles.optional(),
     usageIntent: z.enum(['buy', 'sell', 'both']).optional(),
     location: userLocationSchema,
     confirmAdult: z.literal(true, { error: 'É necessário confirmar a maioridade.' }),

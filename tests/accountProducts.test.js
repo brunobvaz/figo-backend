@@ -22,10 +22,10 @@ it('ordena alterações rápidas e aguarda a gravação ao voltar à conta', asy
   await Promise.all([first, second]);
 });
 it('consulta todas as páginas por sellerId e exclui outros vendedores', async () => {
-  const service = { page: vi.fn().mockResolvedValueOnce({ items: [{ id: 'a', seller: { id: 'alice' } }, { id: 'b', seller: { id: 'bob' } }], pagination: { pages: 2 } })
+  const service = { mine: vi.fn().mockResolvedValueOnce({ items: [{ id: 'a', seller: { id: 'alice' } }, { id: 'b', seller: { id: 'bob' } }], pagination: { pages: 2 } })
     .mockResolvedValueOnce({ items: [{ id: 'c', seller: { _id: 'alice' } }], pagination: { pages: 2 } }) };
   expect((await loadOwnProducts(service, 'alice')).map(x => x.id)).toEqual(['a', 'c']);
-  expect(service.page.mock.calls.map(([params]) => params)).toEqual([{ sellerId: 'alice', page: 1, limit: 100 }, { sellerId: 'alice', page: 2, limit: 100 }]);
+  expect(service.mine.mock.calls.map(([params]) => params)).toEqual([{ page: 1, limit: 100 }, { page: 2, limit: 100 }]);
   expect(await loadOwnProducts(service, null)).toEqual([]);
 });
 it('carrega favoritos fora da cache e ignora produtos removidos', async () => {
@@ -37,5 +37,5 @@ it('carrega favoritos fora da cache e ignora produtos removidos', async () => {
 it('não esconde falhas de rede nem aplica respostas de uma conta anterior', async () => {
   await expect(loadFavoriteProducts({ getById: async () => { throw Error('Sem ligação'); } }, ['a'])).rejects.toThrow('Sem ligação');
   let active = true;
-  expect(await loadOwnProducts({ page: async () => { active = false; return { items: [{ id: 'a', seller: 'alice' }], pagination: { pages: 2 } }; } }, 'alice', () => active)).toEqual([]);
+  expect(await loadOwnProducts({ mine: async () => { active = false; return { items: [{ id: 'a', seller: 'alice' }], pagination: { pages: 2 } }; } }, 'alice', () => active)).toEqual([]);
 });

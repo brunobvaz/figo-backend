@@ -23,8 +23,5 @@ export const userController = {
 
     
     res.json({ success: true, data: await userService.updateAvatar(req.user.id, req.file.filename) });
-  },
-  async enableSeller(req, res) {
-    res.json({ success: true, data: await userService.enableSeller(req.user.id) });
   }
 };

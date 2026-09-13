@@ -1,5 +1,7 @@
+import { emailService } from '../src/services/emailService.js';
+import { authService } from '../src/services/authService.js';
 import { migrateOptionalPhone } from '../scripts/migrate-optional-phone.js';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -20,7 +22,7 @@ const productLocation = { municipalityCode: '0407', parishCode: '040701', locali
 
 const validRegistration = {
   firstName: 'Manuel', lastName: 'Silva', email: 'manuel@email.pt', phone: '912345678', password: 'Password!123',
-  roles: ['buyer'], location: { city: 'Mirandela', postalCode: '5370-000' }, confirmAdult: true, acceptTerms: true, marketingConsent: false
+  location: { city: 'Mirandela', postalCode: '5370-000' }, confirmAdult: true, acceptTerms: true, marketingConsent: false
 };
 
 const register = (overrides = {}) => request(app).post('/api/v1/auth/register').send({ ...validRegistration, ...overrides });
@@ -45,7 +47,7 @@ describe('POST /auth/register', () => {
   it('cria um utilizador sem expor o hash', async () => {
     const response = await register();
     expect(response.status).toBe(201);
-    expect(response.body.data.user).toMatchObject({ name: 'Manuel Silva', firstName: 'Manuel', lastName: 'Silva', email: validRegistration.email, phone: '+351912345678', roles: ['buyer', 'seller'] });
+    expect(response.body.data.user).toMatchObject({ name: 'Manuel Silva', firstName: 'Manuel', lastName: 'Silva', email: validRegistration.email, phone: '+351912345678', });
     expect(response.body.data.verification).toMatchObject({ email: validRegistration.email });
     expect(response.body.data.verification.devCode).toBeUndefined();
     expect(response.body.data.user.passwordHash).toBeUndefined();
@@ -55,10 +57,9 @@ describe('POST /auth/register', () => {
   it('permite repetir o registo ainda não verificado e gera novo desafio', async () => { await register(); const response = await register(); expect(response.status).toBe(201); expect(response.body.data.verification.challengeId).toBeTruthy(); expect(await User.countDocuments()).toBe(1); });
   it('rejeita telefone duplicado', async () => { await register(); expect((await register({ email: 'outro@email.pt' })).status).toBe(409); });
   it.each([undefined, 'buy', 'sell', 'both'])('aceita o novo registo sem telefone com intenção %s', async usageIntent => {
-    const response = await register({ phone: undefined, roles: undefined, usageIntent,
+    const response = await register({ phone: undefined, usageIntent,
       location: { municipalityCode: '0407', parishCode: '040701' } });
     expect(response.status).toBe(201);
-    expect(response.body.data.user.roles).toEqual(['buyer', 'seller']);
     expect(response.body.data.user.phone).toBeUndefined();
     const user = await User.findOne();
     expect(user.usageIntent).toBe(usageIntent);
@@ -86,13 +87,12 @@ describe('POST /auth/register', () => {
     expect((await register({ acceptTerms: false })).status).toBe(422);
   });
   it('rejeita password fraca', async () => { expect((await register({ password: 'fraca' })).status).toBe(422); });
-  it('não permite admin no endpoint público', async () => { expect((await register({ roles: ['admin'] })).status).toBe(422); });
   it('exige confirmação de maioridade', async () => { expect((await register({ confirmAdult: false })).status).toBe(422); });
 });
 
 describe('verificação de email por OTP', () => {
   it('verifica o email e cria uma sessão', async () => {
-    const registration = await register({ phone: undefined, roles: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
+    const registration = await register({ phone: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
     const { challengeId } = registration.body.data.verification;
     const code = '384921';
     await EmailOtp.updateOne({ _id: challengeId }, { codeHash: hashOtp(challengeId, code, process.env.EMAIL_OTP_SECRET) });
@@ -103,7 +103,7 @@ describe('verificação de email por OTP', () => {
   });
 
   it('rejeita um código incorreto e conta a tentativa', async () => {
-    const registration = await register({ phone: undefined, roles: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
+    const registration = await register({ phone: undefined, location: { municipalityCode: '0407', parishCode: '040701' } });
     const { challengeId } = registration.body.data.verification;
     expect((await request(app).post('/api/v1/auth/verify-email').send({ challengeId, code: '000000' })).status).toBe(400);
     expect((await EmailOtp.findById(challengeId)).attempts).toBe(1);
@@ -186,7 +186,7 @@ describe('password reset', () => {
 describe('produtos', () => {
   const product = { title: 'Tomate coração de boi', description: 'Tomate fresco colhido esta manhã.', price: 2.6, unit: '€/kg', category: 'Legumes', ...productLocation, image: 'https://example.com/tomate.jpg' };
   it('rejeita uma imagem de produto vazia', async () => {
-    await register({ roles: ['seller'] });
+    await register({ });
     await verifyUserInDatabase();
     const auth = (await login()).body.data;
     let upload = request(app).post('/api/v1/products').set('Authorization', `Bearer ${auth.accessToken}`);
@@ -198,7 +198,7 @@ describe('produtos', () => {
   });
 
   it('permite ao vendedor criar, editar, listar e remover um produto', async () => {
-    await register({ roles: ['seller'] });
+    await register({ });
     await verifyUserInDatabase();
     const auth = (await login()).body.data;
     const headers = { Authorization: `Bearer ${auth.accessToken}` };
@@ -234,7 +234,7 @@ describe('chat entre utilizadores', () => {
   const send = (id, auth, text, clientId = 'message-test-001') => request(app).post(`/api/v1/conversations/${id}/messages`).set(headers(auth)).send({ text, clientId });
   beforeEach(async () => {
     await register();
-    await register({ email: 'seller@email.pt', phone: '913345678', roles: ['seller'] });
+    await register({ email: 'seller@email.pt', phone: '913345678', });
     await register({ email: 'outsider@email.pt', phone: '914345678' });
     await User.updateMany({}, { emailVerified: true });
     buyerAuth = (await login()).body.data;
@@ -343,12 +343,12 @@ describe('compatibilidade com contas e índices existentes', () => {
       expect((await users.indexes()).map(index => index.name)).not.toContain('phone_1');
     } finally { await db.dropDatabase(); }
   });
-  it('mantém login, localização e roles de uma conta antiga', async () => {
+  it('mantém login e localização de uma conta antiga', async () => {
     await register();
-    await User.updateOne({}, { emailVerified: true, roles: ['buyer'] });
+    await User.updateOne({}, { emailVerified: true, });
     const response = await login();
     expect(response.status).toBe(200);
-    expect(response.body.data.user).toMatchObject({ roles: ['buyer'], phone: '+351912345678',
+    expect(response.body.data.user).toMatchObject({ phone: '+351912345678',
       location: { city: 'Mirandela', postalCode: '5370-000' } });
   });
 });
@@ -380,4 +380,34 @@ describe('edição da localização do perfil', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.location.city).toBe('Chaves');
   });
+});
+
+it('preserva o desafio anterior se o reenvio falhar e permite tentar novamente', async () => {
+  const registration = await register();
+  const { challengeId } = registration.body.data.verification;
+  await EmailOtp.updateOne({ _id: challengeId }, { lastSentAt: new Date(Date.now() - 120000) });
+  const send = vi.spyOn(emailService, 'sendEmailVerification').mockRejectedValueOnce(new Error('Simulated delivery failure'));
+  try {
+    await expect(authService.resendEmailVerification(challengeId)).rejects.toThrow('Simulated delivery failure');
+    expect(await EmailOtp.findById(challengeId)).not.toBeNull();
+    expect(await EmailOtp.countDocuments()).toBe(1);
+    send.mockResolvedValueOnce(undefined);
+    const next = await authService.resendEmailVerification(challengeId);
+    expect(next.challengeId).not.toBe(challengeId);
+    expect(next.devCode).toBeUndefined();
+    expect(await EmailOtp.findById(challengeId)).toBeNull();
+  } finally { send.mockRestore(); }
+});
+
+it('remove permissões antigas sem alterar analytics e não as expõe na API', async () => {
+  const { migrateUnifiedProfile } = await import('../scripts/migrate-unified-profile.js');
+  await register({ usageIntent: 'buy' });
+  await User.collection.updateOne({}, { $set: { roles: ['buyer'], emailVerified: true } });
+  const before = await login();
+  expect(before.status).toBe(200);
+  expect(before.body.data.user).not.toHaveProperty('roles');
+  expect((await User.findOne()).toJSON()).not.toHaveProperty('roles');
+  expect((await migrateUnifiedProfile(mongoose.connection.db)).modifiedCount).toBe(1);
+  expect((await migrateUnifiedProfile(mongoose.connection.db)).modifiedCount).toBe(0);
+  expect((await User.findOne()).usageIntent).toBe('buy');
 });

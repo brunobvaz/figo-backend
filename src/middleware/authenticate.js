@@ -4,6 +4,8 @@ import { tokenService } from '../services/tokenService.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+export const optionalAuthenticate = (req, res, next) => req.headers.authorization ? authenticate(req, res, next) : next();
+
 export const authenticate = asyncHandler(async (req, _res, next) => {
   const [scheme, token] = (req.headers.authorization || '').split(' ');
   if (scheme !== 'Bearer' || !token) throw new AppError(401, 'AUTH_TOKEN_REQUIRED', 'É necessário um access token.');

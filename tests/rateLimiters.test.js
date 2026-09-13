@@ -8,7 +8,7 @@ it('isolates signed users and logs blocked requests without tokens or raw identi
   const app = express();
   app.use(createLimiter('test', { windowMs: 60000, limit: 1, keyGenerator: clientKey }));
   app.get('/', (_req, res) => res.json({ ok: true }));
-  const token = id => tokenService.generateAccessToken({ id, roles: [] }, 'session');
+  const token = id => tokenService.generateAccessToken({ id, }, 'session');
   const log = vi.spyOn(console, 'warn').mockImplementation(() => {});
   try {
     await request(app).get('/').auth(token('alice'), { type: 'bearer' }).expect(200);

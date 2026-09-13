@@ -28,15 +28,15 @@ async function removeImage(filename) {
   }
 }
 
-async function findVisibleProduct(id) {
+async function findVisibleProduct(id, userId) {
   const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } }).populate('seller', sellerFields);
-  if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
+  if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
   return product;
 }
 
 export const productService = {
-  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm, municipalityCode, parishCode, minPrice, maxPrice, sort, availableOnly, unit }) {
-    const filter = { status: availableOnly ? 'active' : { $ne: 'deleted' } };
+  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm, municipalityCode, parishCode, minPrice, maxPrice, sort, availableOnly, unit }, ownerId) {
+    const filter = { status: availableOnly ? 'active' : { $ne: 'deleted' }, ...(ownerId && ownerId === sellerId ? {} : { is_active: { $ne: false } }) };
     if (unit) filter.unit = unit;
     if (minPrice !== undefined || maxPrice !== undefined) filter.price = { ...(minPrice !== undefined ? { $gte: minPrice } : {}), ...(maxPrice !== undefined ? { $lte: maxPrice } : {}) };
     const ordering = sort === 'price_asc' ? { price: 1, _id: 1 } : sort === 'price_desc' ? { price: -1, _id: 1 } : { createdAt: -1, _id: -1 };
@@ -49,7 +49,6 @@ export const productService = {
       filter.$or = [{ title: expression }, { description: expression }, { location: expression }];
     }
     if (latitude !== undefined && longitude !== undefined) {
-      filter.status = 'active';
       const [result] = await Product.aggregate([
         { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', ...(radiusKm !== undefined ? { maxDistance: radiusKm * 1000 } : {}), spherical: true, query: filter } },
         { $sort: !sort || sort === 'distance' ? { distanceMeters: 1, _id: 1 } : ordering },
@@ -72,11 +71,11 @@ export const productService = {
     let created;
     try { created = await Product.create({ ...input, image: null, imageFilename, seller: userId }); }
     catch (error) { await removeImage(imageFilename); throw error; }
-    return findVisibleProduct(created.id);
+    return findVisibleProduct(created.id, userId);
   },
   async update(userId, id, changes, imageFile) {
     const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
-    if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
+    if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes alterar os teus próprios produtos.');
     if ('locality' in changes && !('municipalityCode' in changes)) {
       if (!product.address?.parishCode) throw new AppError(422, 'INVALID_LOCATION', 'Seleciona o concelho e a freguesia.');
@@ -90,11 +89,11 @@ export const productService = {
     try { await product.save(); }
     catch (error) { await removeImage(imageFilename); throw error; }
     if (imageFilename) await removeImage(previousImage);
-    return findVisibleProduct(product.id);
+    return findVisibleProduct(product.id, userId);
   },
   async remove(userId, id) {
     const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
-    if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
+    if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes remover os teus próprios produtos.');
     product.status = 'deleted';
     product.deletedAt = new Date();

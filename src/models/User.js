@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, trim: true },
   avatarFilename: { type: String, default: null },
   passwordHash: { type: String, required: true, select: false },
-  roles: { type: [String], enum: ['buyer', 'seller', 'admin'], default: () => ['buyer', 'seller'], required: true },
   // Onboarding analytics only; never used for authorization.
   usageIntent: { type: String, enum: ['buy', 'sell', 'both'] },
   location: {
@@ -40,6 +39,8 @@ userSchema.set('toJSON', {
     delete ret._id;
     delete ret.__v;
     delete ret.passwordHash;
+    // Legacy documents may still contain the obsolete authorization field.
+    delete ret.roles;
     return ret;
   }
 });

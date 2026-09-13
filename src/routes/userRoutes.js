@@ -9,5 +9,4 @@ import { uploadAvatar } from '../middleware/avatarUpload.js';
 const router = Router();
 router.patch('/me', authenticate, validate(updateMeSchema), asyncHandler(userController.updateMe));
 router.post('/me/avatar', authenticate, uploadAvatar, asyncHandler(userController.updateAvatar));
-router.post('/me/enable-seller', authenticate, asyncHandler(userController.enableSeller));
 export default router;
