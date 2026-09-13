@@ -40,6 +40,8 @@ async function createEmailOtp(user) {
   const code = createOtp();
   challenge.codeHash = hashOtp(challenge.id, code, env.EMAIL_OTP_SECRET);
   await challenge.save();
+  // Explicit bench-only diagnostic requested for OTP delivery troubleshooting.
+  if (env.MONGODB_DB_NAME === 'bench') console.info('[OTP][bench] Código gerado', { email: user.email, code });
   try { await emailService.sendEmailVerification(user.email, code); }
   catch (error) { await EmailOtp.deleteOne({ _id: challenge._id }); throw error; }
   // Keep the previous challenge usable if delivery fails.
