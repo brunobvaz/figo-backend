@@ -6,6 +6,11 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   RESEND_API_KEY: z.string().trim().min(1).optional(),
   EMAIL_FROM: z.string().trim().min(1).optional(),
+  PASSWORD_RESET_URL: z.string().url().refine((value) => {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.hash;
+  }, 'Usa um URL HTTPS sem credenciais ou fragmento.').default('https://links.figo-app.com/reset-password'),
+  PASSWORD_RESET_SEND_IN_DEVELOPMENT: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   PUSH_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPO_ACCESS_TOKEN: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -32,9 +37,9 @@ const schema = z.object({
   EMAIL_OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
   APP_URL: z.string().url().default('http://localhost:8081')
 }).superRefine((value, ctx) => {
-  if (value.NODE_ENV === 'production') {
+  if (value.NODE_ENV === 'production' || (value.NODE_ENV === 'development' && value.PASSWORD_RESET_SEND_IN_DEVELOPMENT)) {
     for (const field of ['RESEND_API_KEY', 'EMAIL_FROM']) {
-      if (!value[field]) ctx.addIssue({ code: 'custom', path: [field], message: 'Obrigatório em bench/produção.' });
+      if (!value[field]) ctx.addIssue({ code: 'custom', path: [field], message: 'Obrigatório em bench/produção ou para envio de recuperação em desenvolvimento.' });
     }
   }
 });

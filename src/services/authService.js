@@ -29,10 +29,9 @@ async function createSession(user, metadata) {
 }
 
 async function createOneTimeToken(user, type, minutes) {
-  await OneTimeToken.deleteMany({ userId: user._id, type, usedAt: null });
   const token = createOpaqueToken();
-  await OneTimeToken.create({ userId: user._id, type, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + minutes * 60_000) });
-  return token;
+  const record = await OneTimeToken.create({ userId: user._id, type, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + minutes * 60_000) });
+  return { token, record };
 }
 
 async function createEmailOtp(user) {
@@ -132,8 +131,17 @@ export const authService = {
   async forgotPassword(email) {
     const user = await User.findOne({ email: normalizeEmail(email), status: 'active' });
     if (user) {
-      const token = await createOneTimeToken(user, 'passwordReset', env.PASSWORD_RESET_EXPIRES_IN_MINUTES);
-      await emailService.sendPasswordReset(user.email, token);
+      const { token, record } = await createOneTimeToken(user, 'passwordReset', env.PASSWORD_RESET_EXPIRES_IN_MINUTES);
+      try {
+        await emailService.sendPasswordReset(user.email, token);
+      } catch (error) {
+        await OneTimeToken.deleteOne({ _id: record._id });
+        if (error.code !== 'EMAIL_SEND_FAILED') throw error;
+        // Preserve the generic public response, without logging addresses or tokens.
+        console.error('[EmailService] Falha no envio de recuperação de password.');
+        return;
+      }
+      await OneTimeToken.deleteMany({ userId: user._id, type: 'passwordReset', usedAt: null, _id: { $lt: record._id } });
     }
   },
 

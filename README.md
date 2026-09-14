@@ -247,3 +247,14 @@ retirados do contrato: publicar backend e app atualizados em conjunto.
 Executar `node scripts/migrate-unified-profile.js` para limpar o campo antigo
 nos documentos existentes. A migração é idempotente e preserva `usageIntent`.
 Tokens antigos continuam válidos até expirarem; as claims antigas são ignoradas.
+
+## Recuperação de password por email
+
+`POST /api/v1/auth/forgot-password` recebe `{ "email": "..." }` e devolve a mesma mensagem para contas existentes e inexistentes, incluindo falhas do fornecedor de email. Falhas do Resend são registadas sem email, token ou credenciais; nesse caso o token novo é eliminado e um link anterior continua utilizável. Um envio aceite invalida os pedidos anteriores.
+
+- `PASSWORD_RESET_URL`: endereço HTTPS do ecrã de recuperação, por defeito `https://links.figo-app.com/reset-password`. O backend acrescenta `token` à query. Configurar por ambiente; não altera `APP_URL`.
+- `PASSWORD_RESET_EXPIRES_IN_MINUTES`: validade do token, por defeito 30 minutos.
+- `RESEND_API_KEY` e `EMAIL_FROM`: obrigatórias em produção, com remetente autorizado no Resend.
+- `PASSWORD_RESET_SEND_IN_DEVELOPMENT=true`: permite testar apenas o envio de recuperação com `NODE_ENV=development`; exige também as credenciais acima. Por defeito é `false` e o link aparece apenas na consola local. Não altera o envio do OTP de registo. Em testes nunca são enviados emails reais.
+
+O link abre o ecrã configurado na app depois de instalar uma build com Universal Links. A página web alternativa e a associação do domínio são configuradas separadamente. O ecrã envia `{ "token": "...", "newPassword": "..." }` para `POST /api/v1/auth/reset-password`. Não consumir tokens em pedidos GET, nem registar os links em produção. Desativar o tracking de cliques para estes emails no Resend para preservar o link direto da app.

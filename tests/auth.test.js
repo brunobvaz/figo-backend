@@ -411,3 +411,48 @@ it('remove permissões antigas sem alterar analytics e não as expõe na API', a
   expect((await migrateUnifiedProfile(mongoose.connection.db)).modifiedCount).toBe(0);
   expect((await User.findOne()).usageIntent).toBe('buy');
 });
+
+describe('envio de recuperação', () => {
+ it('envia o token, guarda apenas o hash e permite alterar a password uma vez', async () => {
+  await register();
+  await verifyUserInDatabase();
+  await login();
+  const send = vi.spyOn(emailService, 'sendPasswordReset').mockResolvedValue();
+  try {
+   const response = await request(app).post('/api/v1/auth/forgot-password').send({ email: validRegistration.email });
+   expect(response.status).toBe(200);
+   const [email, token] = send.mock.calls[0];
+   expect(email).toBe(validRegistration.email);
+   const stored = await OneTimeToken.findOne({ type: 'passwordReset' }).select('+tokenHash');
+   expect(stored.tokenHash).toBe(hashToken(token));
+   expect(stored.tokenHash).not.toBe(token);
+   const newPassword = 'NovaPassword!123';
+   expect((await request(app).post('/api/v1/auth/reset-password').send({ token, newPassword })).status).toBe(200);
+   expect(await Session.countDocuments({ revokedAt: null })).toBe(0);
+   expect((await request(app).post('/api/v1/auth/reset-password').send({ token, newPassword })).status).toBe(400);
+   expect((await login()).status).toBe(401);
+   expect((await login({ password: newPassword })).status).toBe(200);
+  } finally { send.mockRestore(); }
+ });
+ it('preserva o link anterior numa falha e invalida-o depois de reenviar com sucesso', async () => {
+  await register();
+  const user = await User.findOne({ email: validRegistration.email });
+  const old = await OneTimeToken.create({ userId: user.id, tokenHash: hashToken('old-token'), type: 'passwordReset', expiresAt: new Date(Date.now() + 60000) });
+  const send = vi.spyOn(emailService, 'sendPasswordReset').mockRejectedValueOnce(Object.assign(new Error('provider-secret'), { code: 'EMAIL_SEND_FAILED' })).mockResolvedValue();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+   const failed = await request(app).post('/api/v1/auth/forgot-password').send({ email: validRegistration.email });
+   const unknown = await request(app).post('/api/v1/auth/forgot-password').send({ email: 'unknown@example.com' });
+   expect(failed.status).toBe(200);
+   expect(failed.body).toEqual(unknown.body);
+   expect(await OneTimeToken.countDocuments()).toBe(1);
+   expect(await OneTimeToken.findById(old.id)).not.toBeNull();
+   const success = await request(app).post('/api/v1/auth/forgot-password').send({ email: validRegistration.email });
+   expect(success.status).toBe(200);
+   expect(await OneTimeToken.findById(old.id)).toBeNull();
+   expect(await OneTimeToken.countDocuments()).toBe(1);
+   expect(send).toHaveBeenCalledTimes(2);
+   expect(JSON.stringify(log.mock.calls)).not.toContain('provider-secret');
+  } finally { send.mockRestore(); log.mockRestore(); }
+ });
+});
