@@ -1,3 +1,4 @@
+import { withAccountLocks, guardAccountWrites, accountError } from './accountGuard.js';
 import { resolveUserLocation } from './locationService.js';
 import { PushDevice } from '../models/PushDevice.js';
 import argon2 from 'argon2';
@@ -85,10 +86,9 @@ export const authService = {
 
   async login({ email, password }, metadata) {
     const user = await User.findOne({ email: normalizeEmail(email) }).select('+passwordHash');
-    const valid = user ? await argon2.verify(user.passwordHash, password) : false;
+    const valid = user?.passwordHash ? await argon2.verify(user.passwordHash, password) : false;
     if (!user || !valid) throw new AppError(401, 'AUTH_INVALID_CREDENTIALS', 'Email ou palavra-passe inválidos.');
-    if (user.status === 'suspended') throw new AppError(403, 'USER_SUSPENDED', 'A conta encontra-se suspensa.');
-    if (user.status !== 'active') throw new AppError(403, 'USER_INACTIVE', 'A conta não está ativa.');
+    if (user.status !== 'active') throw accountError(user?.status);
     if (!user.emailVerified) {
       const verification = await createEmailOtp(user);
       throw new AppError(403, 'EMAIL_NOT_VERIFIED', 'Confirma o teu email antes de iniciar sessão.', verification);
@@ -103,13 +103,13 @@ export const authService = {
     try { payload = tokenService.verifyRefreshToken(refreshToken); }
     catch { throw new AppError(401, 'AUTH_INVALID_REFRESH_TOKEN', 'Refresh token inválido ou expirado.'); }
     if (!mongoose.isValidObjectId(payload.sid)) throw new AppError(401, 'AUTH_INVALID_REFRESH_TOKEN', 'Refresh token inválido ou expirado.');
+    const user = await User.findById(payload.sub);
+    if (!user || user.status !== 'active') throw accountError(user?.status);
     const session = await Session.findById(payload.sid).select('+refreshTokenHash');
     if (!session || session.revokedAt || session.expiresAt <= new Date() || session.userId.toString() !== payload.sub || session.refreshTokenHash !== hashToken(refreshToken)) {
       if (session?.revokedAt || (session && session.refreshTokenHash !== hashToken(refreshToken))) await Session.updateMany({ userId: payload.sub, revokedAt: null }, { revokedAt: new Date() });
       throw new AppError(401, 'AUTH_INVALID_REFRESH_TOKEN', 'Refresh token inválido ou expirado.');
     }
-    const user = await User.findById(payload.sub);
-    if (!user || user.status !== 'active') throw new AppError(403, 'USER_INACTIVE', 'A conta não está ativa.');
     session.revokedAt = new Date();
     await session.save();
     const next = await createSession(user, metadata);
@@ -129,7 +129,7 @@ export const authService = {
   getCurrentUser(user) { return publicUser(user); },
 
   async forgotPassword(email) {
-    const user = await User.findOne({ email: normalizeEmail(email), status: 'active' });
+    const user = await User.findOne({ email: normalizeEmail(email), status: { $in: ['active', 'deactivated'] } });
     if (user) {
       const { token, record } = await createOneTimeToken(user, 'passwordReset', env.PASSWORD_RESET_EXPIRES_IN_MINUTES);
       try {
@@ -149,7 +149,7 @@ export const authService = {
     const record = await OneTimeToken.findOne({ tokenHash: hashToken(token), type: 'passwordReset' }).select('+tokenHash');
     if (!record || record.usedAt || record.expiresAt <= new Date()) throw new AppError(400, 'AUTH_INVALID_RESET_TOKEN', 'Token de recuperação inválido ou expirado.');
     const user = await User.findById(record.userId).select('+passwordHash');
-    if (!user) throw new AppError(400, 'AUTH_INVALID_RESET_TOKEN', 'Token de recuperação inválido ou expirado.');
+    if (!user || !['active', 'deactivated'].includes(user.status)) throw new AppError(400, 'AUTH_INVALID_RESET_TOKEN', 'Token de recuperação inválido ou expirado.');
     user.passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
     record.usedAt = new Date();
     await Promise.all([user.save(), record.save(), Session.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() })]);
@@ -175,7 +175,7 @@ export const authService = {
     const elapsed = Date.now() - current.lastSentAt.getTime();
     if (elapsed < env.EMAIL_OTP_RESEND_COOLDOWN_SECONDS * 1000) throw new AppError(429, 'AUTH_OTP_RESEND_TOO_SOON', 'Aguarda antes de pedir um novo código.');
     const user = await User.findById(current.userId);
-    if (!user || user.emailVerified) throw new AppError(400, 'AUTH_INVALID_OTP_CHALLENGE', 'O pedido de verificação é inválido ou expirou.');
+    if (!user || user.status !== 'active' || user.emailVerified) throw new AppError(400, 'AUTH_INVALID_OTP_CHALLENGE', 'O pedido de verificação é inválido ou expirou.');
     return createEmailOtp(user);
   },
 
@@ -190,10 +190,30 @@ export const authService = {
       throw new AppError(400, 'AUTH_INVALID_OTP', 'Código inválido ou expirado.');
     }
     const user = await User.findById(record.userId);
-    if (!user || user.status !== 'active') throw new AppError(403, 'USER_INACTIVE', 'A conta não está ativa.');
+    if (!user || user.status !== 'active') throw accountError(user?.status);
     record.usedAt = new Date();
     user.emailVerified = true;
     await Promise.all([record.save(), user.save()]);
     return { user: publicUser(user), ...(await createSession(user, metadata)) };
   }
 };
+
+// Resolve the account, then re-read inside each original method under its lease.
+// This closes races with deletion, token rotation and password/OTP changes.
+const accountResolvers = {
+  register: input => User.findOne({ email: normalizeEmail(input.email) }),
+  login: input => User.findOne({ email: normalizeEmail(input.email) }),
+  forgotPassword: email => User.findOne({ email: normalizeEmail(email) }),
+  refresh: async token => { try { return { _id: tokenService.verifyRefreshToken(token).sub }; } catch { return null; } },
+  resetPassword: async token => { const record = await OneTimeToken.findOne({ tokenHash: hashToken(token), type: 'passwordReset' }); return record && { _id: record.userId }; },
+  verifyEmail: async input => { const record = await EmailOtp.findById(input.challengeId); return record && { _id: record.userId }; },
+  resendEmailVerification: async id => { const record = await EmailOtp.findById(id); return record && { _id: record.userId }; }
+};
+for (const [method, resolve] of Object.entries(accountResolvers)) {
+  const original = authService[method];
+  authService[method] = async (...args) => {
+    const user = await resolve(args[0]);
+    return withAccountLocks(user ? [user._id] : [], () => original.apply(authService, args));
+  };
+}
+guardAccountWrites(authService, ['changePassword', 'sendEmailVerification']);

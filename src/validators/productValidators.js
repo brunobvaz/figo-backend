@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 const coordinate = (min, max) => z.preprocess(v => v === null || (typeof v === 'string' && !v.trim()) ? undefined : v, z.coerce.number().finite().min(min).max(max));
 const locationFields = { municipalityCode: z.string().regex(/^\d{4}$/), parishCode: z.string().regex(/^\d{4}[A-Z0-9]{2}$/), locality: z.string().trim().min(1).max(120), latitude: coordinate(-90, 90), longitude: coordinate(-180, 180), locationSource: z.literal('parish') };
+const imageReference = z.union([
+  z.object({ filename: z.string().regex(/^[a-zA-Z0-9_-]+\.(jpe?g|png|webp)$/i) }).strict(),
+  z.object({ url: z.string().url().max(2048) }).strict(),
+  z.object({ upload: z.number().int().min(0).max(5) }).strict()
+]);
+const imageOrder = z.preprocess(value => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}, z.array(imageReference).min(1, 'Seleciona pelo menos uma fotografia.').max(6, 'Podes adicionar até 6 fotografias.'));
 const productFields = {
   title: z.string().trim().min(2).max(120),
   description: z.string().trim().min(10).max(2000),
@@ -13,7 +22,9 @@ const productFields = {
   is_active: z.preprocess(v => v === 'true' ? true : v === 'false' ? false : v, z.boolean()).optional(),
   seasonality: z.enum(['all_year', 'spring', 'summer', 'autumn', 'winter']).optional(),
   ...locationFields,
-  image: z.string().url().nullable().optional()
+  image: z.string().url().nullable().optional(),
+  imageOrder: imageOrder.optional(),
+  imagesRevision: z.coerce.number().int().nonnegative().optional()
 };
 
 export const createProductSchema = z.object({ body: z.object(productFields).strict() });

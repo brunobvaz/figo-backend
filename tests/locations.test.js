@@ -1,3 +1,4 @@
+import { User } from '../src/models/User.js';
 import { beforeAll, afterAll, beforeEach, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -14,6 +15,7 @@ beforeAll(async () => { mongo = await MongoMemoryServer.create(); await mongoose
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => {
   await Product.deleteMany({});
+  await User.deleteMany({});
   const db = mongoose.connection.db;
   await db.collection('referenceDatasets').updateOne({ _id: 'caop' }, { $set: { activeVersion: 'CAOP2025' } }, { upsert: true });
   await db.collection('municipalities').updateOne({ code: '0302' }, { $set: { version: 'CAOP2025', name: 'Barcelos' } }, { upsert: true });
@@ -38,6 +40,7 @@ it('expõe listas filtradas', async () => {
 });
 it('ordena e pagina por distância, omite GPS e exclui vendidos/sem coordenadas', async () => {
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   await Product.create([
     { ...base, location: 'Antigo', seller },
     { ...base, location: 'Perto', seller, geo: { type: 'Point', coordinates: [-8, 41] } },
@@ -60,7 +63,9 @@ it('usa o ponto da freguesia em vez de coordenadas fornecidas pelo cliente', asy
   const resolved = await resolveLocation(input);
   expect(resolved.geo.coordinates).toEqual([-8.5, 41.5]);
   expect(resolved.locationSource).toBe('parish');
-  const product = await Product.create({ ...resolved, seller: new mongoose.Types.ObjectId() });
+  const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
+  const product = await Product.create({ ...resolved, seller });
   expect(product.locationSource).toBe('parish');
   const updated = await productService.update(product.seller.toString(), product.id, { locality: 'Novo lugar' });
   expect(updated.address.locality).toBe('Novo lugar');
@@ -76,6 +81,7 @@ it('recusa freguesia sem ponto e origens GPS/manual', async () => {
 
 it('filtra anúncios e contagem pelo vendedor sem incluir outras contas', async () => {
   const first = new mongoose.Types.ObjectId(); const second = new mongoose.Types.ObjectId();
+  await User.collection.insertMany([first, second].map(_id => ({ _id, name: 'Vendedor', email: `${_id}@example.test`, status: 'active' })));
   await Product.create([
     { ...base, location: 'Local A', seller: first },
     { ...base, location: 'Local B', seller: second },
@@ -88,6 +94,7 @@ it('filtra anúncios e contagem pelo vendedor sem incluir outras contas', async 
 
 it('combina preço, categoria e ordenação antes de paginar', async () => {
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   await Product.create([
     { ...base, title: 'Barato', price: 2, location: 'A', seller },
     { ...base, title: 'Médio', price: 8, location: 'B', seller },
@@ -103,6 +110,7 @@ it('combina preço, categoria e ordenação antes de paginar', async () => {
 });
 it('aplica preço e ordenação também na pesquisa por proximidade', async () => {
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   await Product.create([
     { ...base, title: 'Perto caro', price: 15, location: 'A', seller, geo: { type: 'Point', coordinates: [-8, 41] } },
     { ...base, title: 'Perto barato', price: 5, location: 'B', seller, geo: { type: 'Point', coordinates: [-8.01, 41] } },
@@ -123,6 +131,7 @@ it('valida filtros de preço e ordenação', () => {
 
 it('filtra disponibilidade e unidade antes da contagem e paginação', async () => {
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   await Product.create([
     { ...base, title: 'Disponível', location: 'A', seller },
     { ...base, title: 'Vendido', location: 'B', seller, status: 'sold' },
@@ -137,6 +146,7 @@ it('filtra disponibilidade e unidade antes da contagem e paginação', async () 
 });
 it('qualquer distância não aplica silenciosamente o raio antigo de 25 km', async () => {
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   await Product.create([
     { ...base, location: 'Perto', seller, geo: { type: 'Point', coordinates: [-8, 41] } },
     { ...base, location: 'Longe', seller, geo: { type: 'Point', coordinates: [-9, 39] } }
@@ -152,6 +162,7 @@ it('guarda sazonalidade e mantém compatibilidade com produtos/clientes antigos'
   expect(updateProductSchema.safeParse({ body: { seasonality: 'autumn' } }).success).toBe(true);
   expect(updateProductSchema.safeParse({ body: { seasonality: 'invalid' } }).success).toBe(false);
   const seller = new mongoose.Types.ObjectId();
+  await User.collection.insertOne({ _id: seller, name: 'Vendedor', email: `${seller}@example.test`, status: 'active' });
   const product = await Product.create({ ...base, location: 'Chaves', seller });
   expect(product.seasonality).toBe('all_year');
   await productService.update(seller.toString(), product.id, { seasonality: 'autumn' });

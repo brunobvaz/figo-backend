@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { emailService } from '../src/services/emailService.js';
 import { authService } from '../src/services/authService.js';
 import { migrateOptionalPhone } from '../scripts/migrate-optional-phone.js';
@@ -124,6 +125,66 @@ describe('middleware authenticate', () => {
   it('rejeita token inválido', async () => { expect((await request(app).get('/api/v1/auth/me').set('Authorization', 'Bearer inválido')).status).toBe(401); });
 });
 
+describe('edição de nome e apelido', () => {
+  async function authenticateProfile() {
+    await register();
+    await verifyUserInDatabase();
+    return (await login()).body.data;
+  }
+
+  it('guarda os campos separados e atualiza o nome completo no perfil e nos anúncios', async () => {
+    const auth = await authenticateProfile();
+    const product = await Product.create({ title: 'Maçãs', description: 'Maçãs do pomar', price: 2,
+      unit: '€/kg', category: 'Frutas', location: 'Mirandela', seller: auth.user.id });
+    const expected = { firstName: 'Ana Maria', lastName: 'dos Santos', name: 'Ana Maria dos Santos' };
+    const response = await request(app).patch('/api/v1/users/me').auth(auth.accessToken, { type: 'bearer' })
+      .send({ firstName: ' Ana Maria ', lastName: ' dos Santos ', name: 'Nome desatualizado',
+        location: { municipalityCode: '0407', parishCode: '040701' } });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject(expected);
+    expect(response.body.data.location).toMatchObject({ municipalityCode: '0407', parishCode: '040701' });
+    expect((await User.findById(auth.user.id)).toJSON()).toMatchObject(expected);
+    const restored = await request(app).get('/api/v1/auth/me').auth(auth.accessToken, { type: 'bearer' });
+    expect(restored.body.data).toMatchObject(expected);
+    const published = await request(app).get(`/api/v1/products/${product.id}`);
+    expect(published.status).toBe(200);
+    expect(published.body.data.seller).toMatchObject(expected);
+    expect(response.body.data.passwordHash).toBeUndefined();
+  });
+
+  it('aceita os mesmos limites de nome e apelido do registo', async () => {
+    const auth = await authenticateProfile();
+    const firstName = 'A'.repeat(60), lastName = 'B'.repeat(80);
+    const response = await request(app).patch('/api/v1/users/me').auth(auth.accessToken, { type: 'bearer' })
+      .send({ firstName, lastName });
+    expect(response.status).toBe(200);
+    expect(response.body.data.name).toBe(`${firstName} ${lastName}`);
+  });
+
+  it('rejeita nomes incompletos ou inválidos sem alterar a conta', async () => {
+    const auth = await authenticateProfile();
+    for (const body of [
+      { firstName: 'Ana' }, { lastName: 'Santos' },
+      { firstName: 'A', lastName: 'Santos' }, { firstName: 'Ana', lastName: ' ' },
+      { firstName: 'A'.repeat(61), lastName: 'Santos' }, { firstName: 'Ana', lastName: 'S'.repeat(81) },
+      { firstName: 'Ana', lastName: 'Santos', status: 'deleted' },
+    ]) {
+      const response = await request(app).patch('/api/v1/users/me').auth(auth.accessToken, { type: 'bearer' }).send(body);
+      expect(response.status).toBe(422);
+    }
+    expect((await User.findById(auth.user.id)).toJSON())
+      .toMatchObject({ name: 'Manuel Silva', firstName: 'Manuel', lastName: 'Silva', status: 'active' });
+  });
+
+  it('mantém compatibilidade com clientes que ainda enviam o nome completo', async () => {
+    const auth = await authenticateProfile();
+    const response = await request(app).patch('/api/v1/users/me').auth(auth.accessToken, { type: 'bearer' })
+      .send({ name: 'Manuel Ferreira' });
+    expect(response.status).toBe(200);
+    expect(response.body.data.name).toBe('Manuel Ferreira');
+  });
+});
+
 describe('fotografia de perfil', () => {
   it('rejeita um avatar vazio sem substituir a fotografia anterior', async () => {
     await register();
@@ -204,7 +265,7 @@ describe('produtos', () => {
     const headers = { Authorization: `Bearer ${auth.accessToken}` };
     let createRequest = request(app).post('/api/v1/products').set(headers);
     Object.entries(product).filter(([key]) => key !== 'image').forEach(([key, value]) => { createRequest = createRequest.field(key, String(value)); });
-    const created = await createRequest.attach('image', Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { filename: 'tomate.jpg', contentType: 'image/jpeg' });
+    const created = await createRequest.attach('image', await sharp({ create: { width: 20, height: 20, channels: 3, background: '#dd6644' } }).jpeg().toBuffer(), { filename: 'tomate.jpg', contentType: 'image/jpeg' });
     expect(created.status).toBe(201);
     expect(created.body.data).toMatchObject({ title: product.title, seller: { id: auth.user.id } });
     expect(created.body.data.imageFilename).toMatch(/\.jpg$/);

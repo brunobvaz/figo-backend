@@ -11,7 +11,7 @@ import { migrateProductActivation } from '../scripts/migrate-product-activation.
 let mongo;
 const seller = new mongoose.Types.ObjectId();
 const base = { title: 'Brócolos', description: 'Brócolos frescos da horta.', price: 3.5, unit: '€/kg', category: 'Legumes', location: 'Lavra', seller };
-beforeAll(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); await Product.init(); await User.collection.insertOne({ _id: seller, name: 'Vendedor' }); });
+beforeAll(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); await Product.init(); await User.collection.insertOne({ _id: seller, name: 'Vendedor', status: 'active' }); });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => { await Product.deleteMany({}); });
 it('aplica defaults e mantém disponibilidade independente da publicação', async () => {

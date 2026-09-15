@@ -39,3 +39,18 @@ it('não esconde falhas de rede nem aplica respostas de uma conta anterior', asy
   let active = true;
   expect(await loadOwnProducts({ mine: async () => { active = false; return { items: [{ id: 'a', seller: 'alice' }], pagination: { pages: 2 } }; } }, 'alice', () => active)).toEqual([]);
 });
+
+it('elimina favoritos depois das gravações em curso e impede que reapareçam', async () => {
+  const data = new Map();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const store = createAccountFavoritesStore(async key => data.get(key), async (key, value) => { await gate; data.set(key, value); }, 'favorites', async key => data.delete(key));
+  const saving = store.save('alice', ['private']);
+  const removing = store.clear('alice');
+  await store.save('alice', ['late']);
+  release(); await Promise.all([saving, removing]);
+  expect(data.has('favorites:alice')).toBe(false);
+  expect(await store.load('alice')).toEqual([]);
+  await store.save('bob', ['other']);
+  expect(await store.load('bob')).toEqual(['other']);
+});

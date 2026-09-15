@@ -1,36 +1,16 @@
-import { warmImageVariants, removeImageVariants } from './imageService.js';
+import { cleanProductImages } from './productImageCleanup.js';
+import { guardAccountWrites } from './accountGuard.js';
+import { productImages, productImageFilenames, coverFields } from '../utils/productImages.js';
+import { prepareProductPhotos, removeProductPhoto } from './productPhotoService.js';
 import mongoose from 'mongoose';
 import { resolveLocation } from './locationService.js';
 import { Product } from '../models/Product.js';
 import { AppError } from '../utils/AppError.js';
-import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { productUploadDirectory } from '../config/uploads.js';
-
-const sellerFields = 'name firstName lastName location avatarFilename createdAt';
+const sellerFields = 'name firstName lastName location avatarFilename createdAt status';
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const extensions = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
-async function saveImage(file) {
-  if (!file) return null;
-  if (!file.buffer?.length) throw new AppError(422, 'EMPTY_PRODUCT_IMAGE', 'A imagem recebida está vazia. Seleciona-a novamente.');
-  await fs.mkdir(productUploadDirectory, { recursive: true });
-  const filename = `${crypto.randomUUID()}${extensions[file.mimetype]}`;
-  await fs.writeFile(path.join(productUploadDirectory, filename), file.buffer);
-  // Warm small variants after upload; concurrent image requests share the same work.
-  warmImageVariants(productUploadDirectory, filename, [160, 640, 1280]).catch(() => {});
-  return filename;
-}
-async function removeImage(filename) {
-  if (filename) {
-    await fs.unlink(path.join(productUploadDirectory, path.basename(filename))).catch(() => {});
-    await removeImageVariants(productUploadDirectory, path.basename(filename));
-  }
-}
-
 async function findVisibleProduct(id, userId) {
   const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } }).populate('seller', sellerFields);
-  if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
+  if (!product || product.seller?.status !== 'active' || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
   return product;
 }
 
@@ -48,33 +28,38 @@ export const productService = {
       const expression = new RegExp(escapeRegex(search), 'i');
       filter.$or = [{ title: expression }, { description: expression }, { location: expression }];
     }
-    if (latitude !== undefined && longitude !== undefined) {
-      const [result] = await Product.aggregate([
-        { $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', ...(radiusKm !== undefined ? { maxDistance: radiusKm * 1000 } : {}), spherical: true, query: filter } },
-        { $sort: !sort || sort === 'distance' ? { distanceMeters: 1, _id: 1 } : ordering },
-        { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0 } }], count: [{ $count: 'total' }] } }
-      ]);
-      await Product.populate(result.items, { path: 'seller', select: sellerFields });
-      const total = result.count[0]?.total || 0;
-      return { items: result.items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
-    }
-    const [items, total] = await Promise.all([
-      Product.find(filter).populate('seller', sellerFields).sort(ordering).skip((page - 1) * limit).limit(limit),
-      Product.countDocuments(filter)
+    // Filter owners before pagination and counts, including geospatial searches.
+    const stages = latitude !== undefined && longitude !== undefined
+      ? [{ $geoNear: { key: 'geo', near: { type: 'Point', coordinates: [longitude, latitude] }, distanceField: 'distanceMeters', ...(radiusKm !== undefined ? { maxDistance: radiusKm * 1000 } : {}), spherical: true, query: filter } }]
+      : [{ $match: filter }];
+    const [result] = await Product.aggregate([
+      ...stages,
+      { $lookup: { from: 'users', localField: 'seller', foreignField: '_id', pipeline: [{ $match: { status: 'active' } }, { $project: { _id: 1 } }], as: 'visibleOwner' } },
+      { $match: { 'visibleOwner.0': { $exists: true } } },
+      { $sort: latitude !== undefined && (!sort || sort === 'distance') ? { distanceMeters: 1, _id: 1 } : ordering },
+      { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0, visibleOwner: 0, pendingImageFilenames: 0 } }], count: [{ $count: 'total' }] } }
     ]);
-    return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    await Product.populate(result.items, { path: 'seller', select: sellerFields });
+    const total = result.count[0]?.total || 0;
+    return { items: result.items.map(item => ({ ...item, images: productImages(item), imagesRevision: item.imagesRevision || 0, ...coverFields(productImages(item)) })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   },
   getById: findVisibleProduct,
-  async create(userId, input, imageFile) {
+  async create(userId, input, files) {
     input = await resolveLocation(input);
-    const imageFilename = await saveImage(imageFile);
+    const saved = [];
     let created;
-    try { created = await Product.create({ ...input, image: null, imageFilename, seller: userId }); }
-    catch (error) { await removeImage(imageFilename); throw error; }
+    try {
+      const { images } = await prepareProductPhotos(null, input, files, saved);
+      const { imageOrder, imagesRevision, image, ...fields } = input;
+      created = await Product.create({ ...fields, images, ...coverFields(images), seller: userId });
+    } catch (error) {
+      await Promise.allSettled(saved.map(photo => removeProductPhoto(photo.filename)));
+      throw error;
+    }
     return findVisibleProduct(created.id, userId);
   },
-  async update(userId, id, changes, imageFile) {
-    const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
+  async update(userId, id, changes, files) {
+    const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } }).select('+pendingImageFilenames');
     if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes alterar os teus próprios produtos.');
     if ('locality' in changes && !('municipalityCode' in changes)) {
@@ -83,21 +68,33 @@ export const productService = {
       changes = { ...other, address: { ...product.address.toObject(), locality },
         location: `${locality}, ${product.address.parish}, ${product.address.municipality}` };
     } else changes = await resolveLocation(changes);
-    const previousImage = product.imageFilename;
-    const imageFilename = await saveImage(imageFile);
-    Object.assign(product, changes, imageFilename ? { imageFilename, image: null } : {});
-    try { await product.save(); }
-    catch (error) { await removeImage(imageFilename); throw error; }
-    if (imageFilename) await removeImage(previousImage);
+    const previousImages = productImageFilenames(product);
+    const saved = [];
+    try {
+      const { images, changed } = await prepareProductPhotos(product, changes, files, saved);
+      const { imageOrder, imagesRevision, image, ...fields } = changes;
+      Object.assign(product, fields, { images, ...coverFields(images) });
+      const retained = new Set(images.map(photo => photo.filename));
+      product.pendingImageFilenames = [...new Set([...(product.pendingImageFilenames || []), ...previousImages.filter(filename => !retained.has(filename))])];
+      if (changed) product.imagesRevision = (product.imagesRevision || 0) + 1;
+      await product.save();
+    } catch (error) {
+      await Promise.allSettled(saved.map(photo => removeProductPhoto(photo.filename)));
+      throw error;
+    }
+    await cleanProductImages(product.id).catch(() => {});
     return findVisibleProduct(product.id, userId);
   },
   async remove(userId, id) {
-    const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } });
+    const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } }).select('+pendingImageFilenames');
     if (!product || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
     if (product.seller.toString() !== userId) throw new AppError(403, 'PRODUCT_FORBIDDEN', 'Só podes remover os teus próprios produtos.');
+    product.pendingImageFilenames = [...new Set([...(product.pendingImageFilenames || []), ...productImageFilenames(product)])];
     product.status = 'deleted';
     product.deletedAt = new Date();
     await product.save();
-    await removeImage(product.imageFilename);
+    await cleanProductImages(product.id).catch(() => {});
   }
 };
+
+guardAccountWrites(productService, ['create', 'update', 'remove']);

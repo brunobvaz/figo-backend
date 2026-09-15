@@ -65,9 +65,9 @@ export async function processPushDeliveries({ now = new Date(), fetcher = fetch 
       }
       const [session, recipient, sender] = await Promise.all([
         Session.exists({ _id: device.session, userId: device.user, revokedAt: null, expiresAt: { $gt: now } }),
-        User.exists({ _id: device.user, status: 'active' }), User.findById(message.sender).select('name')
+        User.exists({ _id: device.user, status: 'active' }), User.findById(message.sender).select('name status')
       ]);
-      if (!session || !recipient) { await setDelivery(job, { status: 'done', lastError: 'SESSION_INACTIVE' }); continue; }
+      if (!session || !recipient || sender?.status !== 'active' || message.removedAt) { await setDelivery(job, { status: 'done', lastError: 'SESSION_INACTIVE' }); continue; }
       const unread = await Message.countDocuments({ recipient: device.user, readAt: null });
       const ticket = await expoRequest('send', {
         to: device.token, title: 'Figo', body: `Nova mensagem de ${(sender?.name || 'um utilizador').slice(0, 80)}`,

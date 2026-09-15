@@ -1,3 +1,5 @@
+import { accountService } from '../services/accountService.js';
+import { accountActionSchema, accountReceiptSchema } from '../validators/authValidators.js';
 import { Router } from 'express';
 import { authController } from '../controllers/authController.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -22,4 +24,13 @@ router.post('/send-email-verification', authenticate, verificationSendLimiter, a
 router.post('/resend-email-verification', verificationSendLimiter, validate(resendEmailVerificationSchema), action(authController.resendEmailVerification));
 router.post('/verify-email', authLimiter, validate(verifyEmailSchema), action(authController.verifyEmail));
 
+for (const [path, method] of [['deletion-receipt', 'prepareDeletion'], ['deactivate', 'deactivate'], ['reactivate', 'reactivate'], ['delete', 'remove']]) {
+  router.post(`/account/${path}`, authLimiter, validate(accountActionSchema), asyncHandler(async (req, res) => {
+    const data = await accountService[method](req.body, { userAgent: req.get('user-agent') || null, ip: req.ip || null });
+    res.status(data.status === 'deletion_pending' ? 202 : 200).json({ success: true, data });
+  }));
+}
+router.post('/account/deletion-status', refreshLimiter, validate(accountReceiptSchema), asyncHandler(async (req, res) => {
+  res.json({ success: true, data: await accountService.deletionStatus(req.body.receipt) });
+}));
 export default router;

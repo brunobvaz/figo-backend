@@ -19,3 +19,14 @@ describe('estado de mensagens no mobile', () => {
     expect(mergeMessages([message], [earlier, read])).toEqual([earlier, read]);
   });
 });
+
+it('apaga o conteúdo do autor eliminado em páginas antigas e respostas tardias', async () => {
+  const { redactRemovedParticipant } = await import('../../mobile/src/utils/chatMessages.js');
+  const participant = { id: 'seller', status: 'deleted' };
+  const old = { id: '1', clientId: '1', senderId: 'seller', text: 'Texto antigo privado', createdAt: '2026-01-01' };
+  const own = { ...old, id: '2', senderId: 'buyer', text: 'Meu texto' };
+  const redacted = redactRemovedParticipant([old, own], participant);
+  expect(redacted.map(row => row.text)).toEqual(['Mensagem removida', 'Meu texto']);
+  expect(redactRemovedParticipant(mergeMessages(redacted, [old]), participant)[0].text).toBe('Mensagem removida');
+  expect(redactRemovedParticipant([old], { id: 'seller', status: 'deactivated' })).toEqual([old]);
+});

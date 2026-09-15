@@ -5,6 +5,7 @@ const schema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true, maxlength: 2000 },
+  removedAt: { type: Date, default: null },
   clientId: { type: String, required: true },
   pushState: { type: String, enum: ['pending', 'queued'], default: 'pending', index: true },
   readAt: { type: Date, default: null }

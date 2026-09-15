@@ -10,7 +10,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "vitest run",
-    "import:caop": "node scripts/import-caop.js"
+    "import:caop": "node scripts/import-caop.js",
+    "migrate:product-images": "node scripts/migrate-product-images.js"
   },
   "dependencies": {
     "argon2": "^0.44.0",

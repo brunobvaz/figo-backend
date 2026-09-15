@@ -8,20 +8,9 @@ export const userController = {
   },
   async updateAvatar(req, res) {
     if (!req.file) return res.status(422).json({ success: false, error: { code: 'AVATAR_REQUIRED', message: 'Seleciona uma fotografia.' } });
-    if (!req.file.size) {
-      await fs.unlink(req.file.path);
-      throw new AppError(422, 'EMPTY_AVATAR', 'A fotografia recebida está vazia. Seleciona-a novamente.');
-    }
-    
-    console.log('UPLOAD AVATAR:', {
-    filename: req.file.filename,
-    originalname: req.file.originalname,
-    mimetype: req.file.mimetype,
-    size: req.file.size,
-    path: req.file.path,
-  });
-
-    
-    res.json({ success: true, data: await userService.updateAvatar(req.user.id, req.file.filename) });
+    try {
+      if (!req.file.size) throw new AppError(422, 'EMPTY_AVATAR', 'A fotografia recebida está vazia. Seleciona-a novamente.');
+      res.json({ success: true, data: await userService.updateAvatar(req.user.id, req.file.filename) });
+    } catch (error) { await fs.unlink(req.file.path).catch(() => {}); throw error; }
   }
 };

@@ -6,6 +6,14 @@ function sign(payload, secret, expiresIn) {
 }
 
 export const tokenService = {
+  accountReceipt(userId) {
+    return sign({ sub: String(userId), purpose: 'account-deletion-status' }, env.JWT_ACCESS_SECRET, '30d');
+  },
+  verifyAccountReceipt(token) {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
+    if (payload.purpose !== 'account-deletion-status') throw new jwt.JsonWebTokenError('Tipo de token inválido');
+    return payload;
+  },
   generateAccessToken(user, sessionId) {
     return sign({ sub: user.id, sid: sessionId }, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRES_IN);
   },

@@ -1,3 +1,4 @@
+import { guardAccountWrites } from './accountGuard.js';
 import crypto from 'node:crypto';
 import { PushDevice } from '../models/PushDevice.js';
 export const pushDeviceService = {
@@ -13,3 +14,5 @@ export const pushDeviceService = {
     return { registered: false };
   }
 };
+
+guardAccountWrites(pushDeviceService, ['register']);

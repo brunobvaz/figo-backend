@@ -52,3 +52,17 @@ export async function removeImageVariants(directory, filename) {
   const entries = await fs.readdir(folder).catch(() => []);
   await Promise.all(entries.filter(name => name.startsWith(`${filename}-`)).map(name => fs.unlink(path.join(folder, name)).catch(() => {})));
 }
+
+// Account deletion must retry real filesystem failures, not silently report success.
+export async function purgeImage(directory, filename) {
+  if (!filename) return;
+  const safeName = path.basename(filename);
+  const remove = file => fs.unlink(file).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  await remove(path.join(directory, safeName));
+  await Promise.allSettled([...pending.entries()]
+    .filter(([file]) => file.startsWith(path.join(directory, '.variants', 'v1', `${safeName}-`)))
+    .map(([, promise]) => promise));
+  const folder = path.join(directory, '.variants', 'v1');
+  const entries = await fs.readdir(folder).catch(error => { if (error.code === 'ENOENT') return []; throw error; });
+  await Promise.all(entries.filter(file => file.startsWith(`${safeName}-`)).map(file => remove(path.join(folder, file))));
+}

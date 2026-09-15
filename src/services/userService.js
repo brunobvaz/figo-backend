@@ -1,3 +1,4 @@
+import { guardAccountWrites } from './accountGuard.js';
 import { warmImageVariants, removeImageVariants } from './imageService.js';
 import { resolveUserLocation } from './locationService.js';
 import { User } from '../models/User.js';
@@ -8,6 +9,9 @@ import { avatarUploadDirectory } from '../config/uploads.js';
 
 export const userService = {
   async updateMe(userId, changes) {
+    if (changes.firstName !== undefined && changes.lastName !== undefined) {
+      changes = { ...changes, name: `${changes.firstName} ${changes.lastName}` };
+    }
     if (changes.location) changes = { ...changes, location: await resolveUserLocation(changes.location) };
     const user = await User.findByIdAndUpdate(userId, { $set: changes }, { new: true, runValidators: true });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'Utilizador não encontrado.');
@@ -27,3 +31,5 @@ export const userService = {
     return user.toJSON();
   }
 };
+
+guardAccountWrites(userService, ['updateMe', 'updateAvatar']);

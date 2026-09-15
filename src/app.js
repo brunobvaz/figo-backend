@@ -1,3 +1,4 @@
+import { accountImageVisibility } from './middleware/accountImageVisibility.js';
 import express from 'express';
 import { imageDelivery } from './middleware/imageDelivery.js';
 import helmet from 'helmet';
@@ -20,8 +21,8 @@ app.use(noSqlSanitize);
 
 app.get('/health', (_req, res) => res.json({ success: true, data: { status: 'ok' } }));
 // Public, immutable assets must not consume the application's API request budget.
-app.use('/uploads/avatars', imageDelivery(avatarUploadDirectory));
-app.use('/uploads/products', imageDelivery(productUploadDirectory));
+app.use('/uploads/avatars', accountImageVisibility('avatar'), imageDelivery(avatarUploadDirectory));
+app.use('/uploads/products', accountImageVisibility('product'), imageDelivery(productUploadDirectory));
 app.use(globalLimiter);
 app.use('/api/v1', routes);
 app.use(notFound);

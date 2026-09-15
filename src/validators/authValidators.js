@@ -33,3 +33,6 @@ export const resetPasswordSchema = z.object({ body: z.object({ token: z.string()
 export const changePasswordSchema = z.object({ body: z.object({ currentPassword: z.string().min(1), newPassword: password }).strict() });
 export const verifyEmailSchema = z.object({ body: z.object({ challengeId: z.string().regex(/^[a-f\d]{24}$/i), code: z.string().regex(/^\d{6}$/) }).strict() });
 export const resendEmailVerificationSchema = z.object({ body: z.object({ challengeId: z.string().regex(/^[a-f\d]{24}$/i) }).strict() });
+
+export const accountActionSchema = z.object({ body: z.object({ email, password: z.string().min(1).max(128), confirm: z.literal(true) }).strict() });
+export const accountReceiptSchema = z.object({ body: z.object({ receipt: z.string().min(1).max(2048) }).strict() });

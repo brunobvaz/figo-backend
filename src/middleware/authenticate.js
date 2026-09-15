@@ -3,6 +3,7 @@ import { Session } from '../models/Session.js';
 import { tokenService } from '../services/tokenService.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { accountError } from '../services/accountGuard.js';
 
 export const optionalAuthenticate = (req, res, next) => req.headers.authorization ? authenticate(req, res, next) : next();
 
@@ -17,8 +18,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   }
   const [user, session] = await Promise.all([User.findById(payload.sub), Session.findById(payload.sid)]);
   if (!user) throw new AppError(401, 'AUTH_TOKEN_INVALID', 'Access token inválido ou expirado.');
-  if (user.status === 'suspended') throw new AppError(403, 'USER_SUSPENDED', 'A conta encontra-se suspensa.');
-  if (user.status !== 'active') throw new AppError(403, 'USER_INACTIVE', 'A conta não está ativa.');
+  if (user.status !== 'active') throw accountError(user.status);
   if (!session || session.revokedAt || session.userId.toString() !== user.id) throw new AppError(401, 'AUTH_SESSION_INVALID', 'A sessão já não é válida.');
   req.user = user;
   req.auth = { sessionId: session.id, token: payload };
