@@ -58,6 +58,8 @@ Preenche `MONGODB_URI` com a connection string do Atlas, terminando em `/develop
 
 ## Execução
 
+Compras no chat: migração, API e decisões em [docs/chat-purchases.md](docs/chat-purchases.md).
+
 ```bash
 npm run dev
 npm start

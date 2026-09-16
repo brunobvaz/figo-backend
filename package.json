@@ -11,7 +11,8 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "import:caop": "node scripts/import-caop.js",
-    "migrate:product-images": "node scripts/migrate-product-images.js"
+    "migrate:product-images": "node scripts/migrate-product-images.js",
+    "migrate:chat-transactions": "node scripts/migrate-chat-transactions.js"
   },
   "dependencies": {
     "argon2": "^0.44.0",

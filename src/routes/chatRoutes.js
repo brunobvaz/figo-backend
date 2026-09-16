@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/authenticate.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { chatService } from '../services/chatService.js';
+import { transactionService, proposalInput, reviewInput } from '../services/transactionService.js';
 
 const router = Router();
 const id = z.string().regex(/^[0-9a-fA-F]{24}$/);
@@ -21,4 +22,11 @@ router.post('/', validate(z.object({ body: z.object({ productId: id }) })), acti
 router.get('/:id/messages', validate(z.object({ params, query: z.object({ before: id.optional(), limit }) })), action((req) => chatService.messages(req.user.id, req.params.id, req.validated.query)));
 router.post('/:id/messages', createLimiter('chat-send', { windowMs: 60000, limit: 60, keyGenerator: (req) => req.user.id, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, error: { code: 'CHAT_RATE_LIMIT', message: 'Estás a enviar demasiado depressa. Aguarda um momento.' } } }), validate(z.object({ params, body: z.object({ text: z.string().trim().min(1).max(2000), clientId: z.string().min(8).max(100).regex(/^[a-zA-Z0-9_-]+$/) }) })), action((req) => chatService.send(req.user.id, req.params.id, req.body)));
 router.patch('/:id/read', validate(z.object({ params, body: z.object({ messageIds: z.array(id).min(1).max(100) }) })), action((req) => chatService.read(req.user.id, req.params.id, req.body.messageIds)));
+router.post('/:id/transactions', validate(z.object({ params, body: proposalInput })), action(req => transactionService.propose(req.user.id, req.params.id, req.body)));
+for (const operation of ['accept', 'decline', 'confirm-buyer', 'confirm-seller', 'complete']) {
+  router.post(`/:id/transactions/:transactionId/${operation}`, validate(z.object({ params: params.extend({ transactionId: id }), body: z.object({}).strict() })),
+    action(req => transactionService.transition(req.user.id, req.params.id, req.params.transactionId, operation)));
+}
+router.post('/:id/transactions/:transactionId/review', validate(z.object({ params: params.extend({ transactionId: id }), body: reviewInput })),
+  action(req => transactionService.review(req.user.id, req.params.id, req.params.transactionId, req.body)));
 export default router;

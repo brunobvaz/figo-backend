@@ -10,7 +10,7 @@
 
 Reativar exige email, palavra-passe e confirmação explícita. Também invalida sessões antigas, cobrindo falhas parciais da desativação. Todos os anúncios existentes ficam `is_active: false`; o estado esgotado/removido mantém-se. É possível recuperar a palavra-passe ou eliminar uma conta desativada sem a reativar.
 
-As encomendas atuais são dados de demonstração locais. Não existe ainda um sistema de pagamentos ou encomendas no servidor que exija bloquear a operação. Quando for implementado, rever estes fluxos com as obrigações de transações pendentes.
+Os ecrãs de encomendas e vendas usam as transações reais do chat descritas em [chat-purchases.md](chat-purchases.md): não processam pagamentos e não bloqueiam a eliminação da conta. Durante indisponibilidade, as ações da compra ficam suspensas. A eliminação remove texto livre das avaliações sobre/por essa conta e o título de produto do vendedor; conserva apenas os dados técnicos da transação e classificações. O perfil público fica indisponível e os históricos privados da outra parte mantêm as referências técnicas com identidade genérica.
 
 ## API
 

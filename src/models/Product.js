@@ -38,6 +38,11 @@ productSchema.index({ 'images.filename': 1 }, { sparse: true });
 productSchema.index({ imageFilename: 1 }, { sparse: true });
 productSchema.index({ geo: '2dsphere' });
 productSchema.index({ title: 'text', description: 'text' });
-productSchema.set('toJSON', { transform(_doc, ret) { ret.images = productImages(ret); ret.imagesRevision ??= 0; Object.assign(ret, coverFields(ret.images)); ret.id = ret._id.toString(); delete ret._id; delete ret.__v; delete ret.geo; delete ret.pendingImageFilenames; return ret; } });
+productSchema.set('toJSON', { transform(doc, ret) {
+  ret.images = productImages(ret); ret.imagesRevision ??= 0; Object.assign(ret, coverFields(ret.images));
+  if (doc.$locals.sellerSummary && ret.seller) ret.seller = { ...ret.seller, ...doc.$locals.sellerSummary };
+  ret.id = ret._id.toString(); delete ret._id; delete ret.__v; delete ret.geo; delete ret.pendingImageFilenames;
+  return ret;
+} });
 
 export const Product = mongoose.model('Product', productSchema);

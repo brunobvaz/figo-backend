@@ -6,11 +6,15 @@ import mongoose from 'mongoose';
 import { resolveLocation } from './locationService.js';
 import { Product } from '../models/Product.js';
 import { AppError } from '../utils/AppError.js';
+import { transactionService } from './transactionService.js';
 const sellerFields = 'name firstName lastName location avatarFilename createdAt status';
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 async function findVisibleProduct(id, userId) {
   const product = await Product.findOne({ _id: id, status: { $ne: 'deleted' } }).populate('seller', sellerFields);
   if (!product || product.seller?.status !== 'active' || (product.is_active === false && String(product.seller?._id || product.seller) !== userId)) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.');
+  // Keep the document contract for internal callers (including location data).
+  // Derived commerce fields belong only in the public JSON representation.
+  product.$locals.sellerSummary = (await transactionService.sellerSummaries([product.seller._id])).get(String(product.seller._id));
   return product;
 }
 
@@ -40,8 +44,10 @@ export const productService = {
       { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $set: { id: { $toString: '$_id' } } }, { $project: { geo: 0, __v: 0, visibleOwner: 0, pendingImageFilenames: 0 } }], count: [{ $count: 'total' }] } }
     ]);
     await Product.populate(result.items, { path: 'seller', select: sellerFields });
+    result.items = result.items.filter(item => item.seller?.status === 'active');
+    const sellers = await transactionService.sellerSummaries(result.items.map(item => item.seller._id));
     const total = result.count[0]?.total || 0;
-    return { items: result.items.map(item => ({ ...item, images: productImages(item), imagesRevision: item.imagesRevision || 0, ...coverFields(productImages(item)) })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    return { items: result.items.map(item => ({ ...item, seller: { ...item.seller.toJSON(), ...sellers.get(String(item.seller._id)) }, images: productImages(item), imagesRevision: item.imagesRevision || 0, ...coverFields(productImages(item)) })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   },
   getById: findVisibleProduct,
   async create(userId, input, files) {

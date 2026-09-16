@@ -3,6 +3,7 @@ import { startAccountDeletionWorker } from './services/accountService.js';
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
+import { Transaction } from './models/Transaction.js';
 
 import { startPushWorker } from './services/pushService.js';
 
@@ -12,6 +13,8 @@ let stopAccountDeletionWorker;
 let stopProductImageCleanupWorker;
 async function start() {
   await connectDatabase();
+  // The unique active-proposal index must exist before accepting writes.
+  await Transaction.init();
   stopPushWorker = startPushWorker();
   stopAccountDeletionWorker = startAccountDeletionWorker();
   stopProductImageCleanupWorker = startProductImageCleanupWorker();

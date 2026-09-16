@@ -5,6 +5,7 @@ import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
 import { Product } from '../models/Product.js';
 import { AppError } from '../utils/AppError.js';
+import { transactionService } from './transactionService.js';
 
 const memberFilter = (userId) => ({ $or: [{ buyer: userId }, { seller: userId }] });
 const messageJson = (message) => ({ id: String(message._id), senderId: String(message.sender), text: message.text, clientId: message.clientId, createdAt: message.createdAt, readAt: message.readAt, removedAt: message.removedAt });
@@ -32,7 +33,10 @@ export const chatService = {
     const conversation = await requireMember(id, userId);
     await conversation.populate({ path: 'buyer seller', select: 'name avatarFilename status' });
     const other = String(conversation.buyer?._id) === userId ? conversation.seller : conversation.buyer;
-    return { id: conversation.id, productId: String(conversation.product), productTitle: productTitle(conversation), ...availability(other) };
+    const [purchase, sellerReputation] = await Promise.all([
+      transactionService.context(userId, id), transactionService.reputation(conversation.seller._id)
+    ]);
+    return { id: conversation.id, productId: String(conversation.product), productTitle: productTitle(conversation), ...availability(other), ...purchase, sellerReputation };
   },
   async open(userId, productId) {
     const product = await Product.findOne({ _id: productId, is_active: { $ne: false }, status: { $ne: 'deleted' } });
@@ -58,7 +62,14 @@ export const chatService = {
           { $match: { $expr: { $eq: ['$conversation', '$$conversationId'] } } },
           { $sort: { _id: -1 } }, { $limit: 1 }
         ], as: 'latest' } },
-        { $set: { lastActivity: { $ifNull: [{ $arrayElemAt: ['$latest.createdAt', 0] }, '$createdAt'] } } },
+        { $lookup: { from: 'transactions', let: { conversationId: '$_id' }, pipeline: [
+          { $match: { $expr: { $eq: ['$conversation', '$$conversationId'] } } },
+          { $sort: { updatedAt: -1 } }, { $limit: 1 }, { $project: { status: 1, updatedAt: 1 } }
+        ], as: 'purchase' } },
+        { $set: { lastActivity: { $max: [
+          { $ifNull: [{ $arrayElemAt: ['$latest.createdAt', 0] }, '$createdAt'] },
+          { $ifNull: [{ $arrayElemAt: ['$purchase.updatedAt', 0] }, '$createdAt'] }
+        ] } } },
         { $sort: { lastActivity: -1, _id: -1 } }, { $skip: (page - 1) * limit }, { $limit: limit }
       ]),
       Conversation.countDocuments(memberFilter(userId)),
@@ -67,9 +78,12 @@ export const chatService = {
     await Conversation.populate(items, { path: 'buyer seller', select: 'name avatarFilename status' });
     const summaries = await Promise.all(items.map(async (item) => {
       const other = String(item.buyer?._id) === userId ? item.seller : item.buyer;
+      const purchase = item.purchase[0];
+      const purchaseLatest = purchase && (!item.latest[0] || purchase.updatedAt >= item.latest[0].createdAt);
+      const purchaseLabels = { pending: 'Proposta de compra pendente', accepted: 'Proposta aceite · Confirmação do comprador pendente', buyer_confirmed: 'Compra confirmada · Confirmação do vendedor pendente', seller_confirmed: 'Acordo confirmado · Compra em curso', declined: 'Proposta recusada', completed: 'Compra concluída · Avaliação pendente', reviewed: 'Transação concluída', cancelled: 'Proposta cancelada' };
       return {
         id: String(item._id), productId: String(item.product), productTitle: productTitle(item), ...availability(other),
-        lastMessage: item.latest[0] && String(item.latest[0].sender) !== userId && (!other || isRemoved(other.status)) ? 'Mensagem removida' : item.latest[0]?.text || '', updatedAt: item.lastActivity,
+        lastMessage: purchaseLatest ? purchaseLabels[purchase.status] : item.latest[0] && String(item.latest[0].sender) !== userId && (!other || isRemoved(other.status)) ? 'Mensagem removida' : item.latest[0]?.text || '', updatedAt: item.lastActivity,
         unreadCount: await Message.countDocuments({ conversation: item._id, recipient: userId, readAt: null })
       };
     }));

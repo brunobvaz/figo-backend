@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { Product } from '../models/Product.js';
 import { Message } from '../models/Message.js';
 import { Conversation } from '../models/Conversation.js';
+import { Transaction } from '../models/Transaction.js';
 import { Session } from '../models/Session.js';
 import { OneTimeToken } from '../models/OneTimeToken.js';
 import { EmailOtp } from '../models/EmailOtp.js';
@@ -51,6 +52,12 @@ export async function completeAccountDeletion(userId) {
       await revokeAccess(userId);
       await Message.updateMany({ sender: userId }, { $set: { text: 'Mensagem removida', removedAt: user.deletionRequestedAt || new Date(), pushState: 'queued' } });
       await Conversation.updateMany({ seller: userId }, { $set: { productTitle: 'Anúncio indisponível' } });
+      // Account erasure is the only exception to immutable proposal snapshots.
+      // Keep technical parties, amounts and ratings; remove authored/free text.
+      await Transaction.collection.updateMany({ seller: user._id }, { $set: { productTitle: 'Anúncio indisponível' }, $inc: { revision: 1 } });
+      await Transaction.updateMany({ $or: [{ 'reviews.reviewer': user._id }, { 'reviews.reviewedUser': user._id }] },
+        { $set: { 'reviews.$[review].comment': '' }, $inc: { revision: 1 } },
+        { arrayFilters: [{ $or: [{ 'review.reviewer': user._id }, { 'review.reviewedUser': user._id }] }] });
       const products = await Product.find({ seller: userId }).select('imageFilename images +pendingImageFilenames');
       for (const product of products) {
         for (const filename of [...new Set([...productImageFilenames(product), ...(product.pendingImageFilenames || [])])]) await purgeImage(productUploadDirectory, filename);
