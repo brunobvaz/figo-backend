@@ -37,3 +37,9 @@ it('exclui todo o ano da seleção editorial sem alterar a disponibilidade geral
   expect(isExplicitlyInSeason({ seasons: ['autumn', 'winter'] }, 'autumn')).toBe(true);
   expect(isExplicitlyInSeason({ seasonality: 'summer' }, 'autumn')).toBe(false);
 });
+
+it('não destaca anúncios por posição, dados antigos ou valores truthy', () => {
+  const products = Array.from({ length: 8 }, (_, index) => ({ id: String(index) }));
+  products.push({ id: 'chosen', featured: true }, { id: 'off', featured: false }, { id: 'string', featured: 'true' }, { id: 'hidden', featured: true, is_active: false }, { id: 'deleted', featured: true, status: 'deleted' });
+  expect(discoveryProducts(products).filter(product => product.featured).map(product => product.id)).toEqual(['chosen']);
+});

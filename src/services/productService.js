@@ -19,9 +19,10 @@ async function findVisibleProduct(id, userId) {
 }
 
 export const productService = {
-  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm, municipalityCode, parishCode, minPrice, maxPrice, sort, availableOnly, unit }, ownerId) {
+  async list({ search, category, sellerId, page, limit, latitude, longitude, radiusKm, municipalityCode, parishCode, minPrice, maxPrice, sort, availableOnly, unit, featured }, ownerId) {
     const filter = { status: availableOnly ? 'active' : { $ne: 'deleted' }, ...(ownerId && ownerId === sellerId ? {} : { is_active: { $ne: false } }) };
     if (unit) filter.unit = unit;
+    if (featured !== undefined) filter.featured = featured ? true : { $ne: true };
     if (minPrice !== undefined || maxPrice !== undefined) filter.price = { ...(minPrice !== undefined ? { $gte: minPrice } : {}), ...(maxPrice !== undefined ? { $lte: maxPrice } : {}) };
     const ordering = sort === 'price_asc' ? { price: 1, _id: 1 } : sort === 'price_desc' ? { price: -1, _id: 1 } : { createdAt: -1, _id: -1 };
     if (category && category !== 'Todos') filter.category = category;
@@ -47,7 +48,7 @@ export const productService = {
     result.items = result.items.filter(item => item.seller?.status === 'active');
     const sellers = await transactionService.sellerSummaries(result.items.map(item => item.seller._id));
     const total = result.count[0]?.total || 0;
-    return { items: result.items.map(item => ({ ...item, seller: { ...item.seller.toJSON(), ...sellers.get(String(item.seller._id)) }, images: productImages(item), imagesRevision: item.imagesRevision || 0, ...coverFields(productImages(item)) })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    return { items: result.items.map(item => ({ ...item, featured: item.featured === true, seller: { ...item.seller.toJSON(), ...sellers.get(String(item.seller._id)) }, images: productImages(item), imagesRevision: item.imagesRevision || 0, ...coverFields(productImages(item)) })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   },
   getById: findVisibleProduct,
   async create(userId, input, files) {

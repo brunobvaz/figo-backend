@@ -229,9 +229,10 @@ it('atualiza o Início automaticamente e renova também Perto de ti no gesto de 
   vi.useFakeTimers();
   const refreshProducts = vi.fn().mockResolvedValue(undefined);
   const refreshNearby = vi.fn().mockResolvedValue(undefined);
+  const refreshFeatured = vi.fn().mockResolvedValue(undefined);
   const hook = mountClient('src/screens/home/HomeScreen.js', [{ navigation: {} }], {
     '../../hooks/useProducts': { default: () => ({ homeProducts: [], refreshProducts, isLoading: false }) },
-    '../../hooks/useExploreProducts': { default: () => ({ products: [], refresh: refreshNearby }) }
+    '../../hooks/useExploreProducts': { default: filters => ({ products: [], refresh: filters.featured ? refreshFeatured : refreshNearby }) }
   });
   await flush();
   expect(refreshProducts).toHaveBeenCalledTimes(1);
@@ -242,6 +243,7 @@ it('atualiza o Início automaticamente e renova também Perto de ti no gesto de 
   const refresh = hook.value.props.refreshControl.props.onRefresh(); await flush();
   expect(hook.value.props.refreshControl.props.refreshing).toBe(true);
   expect(refreshNearby).toHaveBeenCalledOnce();
+  expect(refreshFeatured).toHaveBeenCalledOnce();
   pending.resolve(); await refresh; await flush();
   expect(hook.value.props.refreshControl.props.refreshing).toBe(false);
   hook.focus(false);
@@ -254,4 +256,28 @@ it('atualiza o Início automaticamente e renova também Perto de ti no gesto de 
   hook.appState('active'); await flush();
   expect(refreshProducts).toHaveBeenCalledTimes(5);
   hook.unmount();
+});
+
+
+it('a secção Destaques consulta a seleção do servidor e retira anúncios desmarcados sem preencher com os recentes', async () => {
+  vi.useFakeTimers();
+  const featured = { id: 'old-featured', title: 'Antigo em destaque', featured: true, is_active: true, status: 'active', updatedAt: '2026-09-17T10:00:00Z' };
+  const api = vi.fn().mockResolvedValue({ items: [featured], pagination: { page: 1, total: 1, pages: 1 } });
+  const refreshProducts = vi.fn().mockResolvedValue(undefined);
+  const home = mountClient('src/screens/home/HomeScreen.js', [{ navigation: {} }], {
+    '../../hooks/useProducts': { default: () => ({ homeProducts: [{ id: 'recent', title: 'Recente normal' }], refreshProducts, isLoading: false }) },
+    '../services/productService': { productService: { page: api } }
+  });
+  const shelves = node => {
+    if (!node || typeof node !== 'object') return [];
+    if (Array.isArray(node)) return node.flatMap(shelves);
+    return [...(node.type === 'ProductShelf' && node.props.variant === 'featured' ? [node] : []), ...shelves(node.props?.children)];
+  };
+  await flush();
+  expect(api.mock.calls[0][0]).toMatchObject({ featured: true, page: 1 });
+  expect(shelves(home.value)[0].props.products.map(item => item.id)).toEqual(['old-featured']);
+  api.mockResolvedValue({ items: [], pagination: { page: 1, total: 0, pages: 0 } });
+  await vi.advanceTimersByTimeAsync(30000);
+  expect(shelves(home.value)).toHaveLength(0);
+  home.unmount();
 });

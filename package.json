@@ -10,6 +10,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "vitest run",
+    "admin:create": "node scripts/create-admin.js",
     "import:caop": "node scripts/import-caop.js",
     "migrate:product-images": "node scripts/migrate-product-images.js",
     "migrate:chat-transactions": "node scripts/migrate-chat-transactions.js"

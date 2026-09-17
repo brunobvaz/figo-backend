@@ -21,6 +21,7 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_EXPIRES_IN: z.string().regex(durationPattern).default('30d'),
   CORS_ORIGIN: z.string().default('http://localhost:8081'),
+  BACKOFFICE_ORIGIN: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
   JSON_BODY_LIMIT: z.string().default('20kb'),
   GLOBAL_RATE_LIMIT_WINDOW_MS: z.coerce.number().positive().default(900000),
   GLOBAL_RATE_LIMIT_MAX: z.coerce.number().positive().default(1500),

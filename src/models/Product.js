@@ -24,6 +24,8 @@ const productSchema = new mongoose.Schema({
   pendingImageFilenames: { type: [String], default: [], select: false },
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   status: { type: String, enum: ['active', 'sold', 'deleted'], default: 'active', index: true },
+  // Editorial selection can only be changed through authenticated admin routes.
+  featured: { type: Boolean, default: false, index: true },
   is_active: { type: Boolean, default: true, index: true },
   deletedAt: { type: Date, default: null }
 }, { timestamps: true });
@@ -39,6 +41,7 @@ productSchema.index({ imageFilename: 1 }, { sparse: true });
 productSchema.index({ geo: '2dsphere' });
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.set('toJSON', { transform(doc, ret) {
+  ret.featured = ret.featured === true;
   ret.images = productImages(ret); ret.imagesRevision ??= 0; Object.assign(ret, coverFields(ret.images));
   if (doc.$locals.sellerSummary && ret.seller) ret.seller = { ...ret.seller, ...doc.$locals.sellerSummary };
   ret.id = ret._id.toString(); delete ret._id; delete ret.__v; delete ret.geo; delete ret.pendingImageFilenames;

@@ -262,3 +262,17 @@ Tokens antigos continuam válidos até expirarem; as claims antigas são ignorad
 - `PASSWORD_RESET_SEND_IN_DEVELOPMENT=true`: permite testar apenas o envio de recuperação com `NODE_ENV=development`; exige também as credenciais acima. Por defeito é `false` e o link aparece apenas na consola local. Não altera o envio do OTP de registo. Em testes nunca são enviados emails reais.
 
 O link abre o ecrã configurado na app depois de instalar uma build com Universal Links. A página web alternativa e a associação do domínio são configuradas separadamente. O ecrã envia `{ "token": "...", "newPassword": "..." }` para `POST /api/v1/auth/reset-password`. Não consumir tokens em pedidos GET, nem registar os links em produção. Desativar o tracking de cliques para estes emails no Resend para preservar o link direto da app.
+
+## Backoffice Figo
+
+O projeto React está em `../backoffice`. As rotas `/api/v1/admin` usam exclusivamente a collection `admins` e sessões em `admin_sessions`; as contas e os tokens de `users` não concedem acesso administrativo.
+
+Define `BACKOFFICE_ORIGIN` com a origem exata do frontend (desenvolvimento: `http://localhost:5173,http://127.0.0.1:5173`) e executa `npm run admin:create` para criar o primeiro administrador de forma interativa na base configurada. O comando não altera contas existentes. Não existe registo público de administradores.
+
+Consulta `../backoffice/README.md` para execução, configuração do proxy em produção, funcionalidades e testes.
+
+### Destaques de anúncios
+
+O campo `Product.featured` tem valor inicial `false`. Apenas `PATCH /api/v1/admin/products/:id` aceita a alteração deste campo; as rotas de criação e edição de produtos da app rejeitam-no. `GET /api/v1/products?featured=true` filtra no MongoDB antes da paginação e mantém as regras de publicação e estado da conta. Valores ausentes em documentos antigos são tratados como `false`, sem migração obrigatória.
+
+No backoffice, abrir Anúncios → anúncio → **Destacar anúncio** → **Guardar alterações**. A mesma opção permite retirar o destaque. Publicar as alterações no backend e atualizar a app para usar a consulta dedicada de destaques no Início.

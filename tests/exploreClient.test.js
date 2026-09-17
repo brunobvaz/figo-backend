@@ -26,9 +26,9 @@ it('limpa filtros sem alterar a vista nem o objeto original', () => {
   expect(hasExploreFilters(resetExploreFilters(filters))).toBe(false);
   expect(filters.query).toBe('mel');
 });
-it('aplica os mesmos destaques do Home sem destacar a primeira linha de cada pesquisa', () => {
-  const items = [{ id: 'b' }, { id: 'a' }, { id: 'c', featured: false, seasonal: true, seasonality: 'autumn' }];
-  const editorial = [{ id: 'a', featured: true }, { id: 'b', featured: false }, { id: 'c', featured: true }];
+it('usa apenas o destaque explícito da API, ignorando seleções locais antigas', () => {
+  const items = [{ id: 'b' }, { id: 'a', featured: true }, { id: 'c', featured: false, seasonal: true, seasonality: 'autumn' }];
+  const editorial = [{ id: 'a', featured: true }, { id: 'b', featured: true }, { id: 'c', featured: true }];
   expect(applyEditorialFilters(items, { featured: true }, editorial).map(x => x.id)).toEqual(['a']);
   expect(applyEditorialFilters(items, { season: 'autumn' }, editorial).map(x => x.id)).toEqual(['c']);
   expect(applyEditorialFilters([], {}, editorial)).toEqual([]);
@@ -48,4 +48,9 @@ it('o atalho Da época exclui todo o ano mesmo com metadados antigos', () => {
   expect(applyEditorialFilters(items, { season: 'autumn' }, []).map(item => item.id)).toEqual(['autumn']);
   expect(hasExploreFilters({ season: 'autumn' })).toBe(true);
   expect(resetExploreFilters({ season: 'autumn' })).toEqual({ viewMode: 'list' });
+});
+
+it('envia o filtro de destaques à API para filtrar antes da paginação', () => {
+  expect(productQuery({ featured: true }, null)).toMatchObject({ featured: true, limit: 20 });
+  expect(productQuery({}, null).featured).toBeUndefined();
 });

@@ -10,7 +10,7 @@ import { noSqlSanitize } from './middleware/noSqlSanitize.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { avatarUploadDirectory, productUploadDirectory } from './config/uploads.js';
 
-const origins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
+const origins = `${env.CORS_ORIGIN},${env.BACKOFFICE_ORIGIN}`.split(',').map((origin) => origin.trim());
 export const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
