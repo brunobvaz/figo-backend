@@ -48,6 +48,126 @@ beforeEach(async () => {
   conversation = await Conversation.create({ product: product.id, productTitle: product.title, buyer: actors.buyer, seller: actors.seller });
 });
 
+describe('novidades de compras por ler', () => {
+  const counts = actor => chatService.list(actors[actor], 1, 50);
+  const eventIds = async actor => (await chatService.detail(actors[actor], conversation.id)).transactions.flatMap(row => row.unreadEventIds);
+  const readEvents = (actor, transactionEventIds, id = conversation.id) => request(app).patch(`/api/v1/conversations/${id}/read`)
+    .auth(tokens[actor], { type: 'bearer' }).send({ transactionEventIds });
+  const readAll = async actor => {
+    const ids = await eventIds(actor);
+    if (ids.length) expect((await readEvents(actor, ids)).status).toBe(200);
+  };
+
+  it('conta uma proposta só para o destinatário, mesmo sem mensagens de texto', async () => {
+    const purchase = await propose();
+    expect(purchase.unreadEventIds).toEqual([]);
+    expect((await counts('buyer')).unreadTotal).toBe(0);
+    const seller = await counts('seller');
+    expect(seller.unreadTotal).toBe(1);
+    expect(seller.items[0].unreadCount).toBe(1);
+    expect(await Message.countDocuments()).toBe(0);
+    const result = await chatService.messages(actors.seller, conversation.id, { limit: 50 });
+    expect(result.transactions[0].unreadEventIds).toHaveLength(1);
+    expect((await counts('seller')).unreadTotal).toBe(1); // Fetching is not reading.
+    await propose();
+    expect((await counts('seller')).unreadTotal).toBe(1);
+  });
+
+  it.each([
+    ['accept', 'seller', 'buyer', []],
+    ['decline', 'seller', 'buyer', []],
+    ['confirm-buyer', 'buyer', 'seller', ['accept']],
+    ['confirm-seller', 'seller', 'buyer', ['accept', 'confirm-buyer']],
+    ['complete', 'buyer', 'seller', ['accept', 'confirm-buyer', 'confirm-seller']]
+  ])('ativa o badge por %s e não duplica a ação repetida', async (action, actor, recipient, previous) => {
+    const purchase = await propose();
+    for (const step of previous) await act(purchase, step);
+    await readAll('buyer'); await readAll('seller');
+    await act(purchase, action, actor);
+    expect((await counts(recipient)).unreadTotal).toBe(1);
+    expect((await counts(actor)).unreadTotal).toBe(0);
+    await act(purchase, action, actor);
+    expect((await counts(recipient)).unreadTotal).toBe(1);
+    await readAll(recipient);
+    expect((await counts(recipient)).unreadTotal).toBe(0);
+  });
+
+  it('inclui avaliações recebidas e preserva a leitura ao repetir a avaliação', async () => {
+    const purchase = await finish();
+    await readAll('buyer'); await readAll('seller');
+    await transactionService.review(actors.buyer, conversation.id, purchase.id, review);
+    expect((await counts('seller')).unreadTotal).toBe(1);
+    expect((await counts('buyer')).unreadTotal).toBe(0);
+    await readAll('seller');
+    await transactionService.review(actors.buyer, conversation.id, purchase.id, review);
+    expect((await counts('seller')).unreadTotal).toBe(0);
+  });
+
+  it('soma texto e compras e marca ambos como lidos sem alterar a data ou revisão da compra', async () => {
+    const purchase = await propose();
+    const text = await chatService.send(actors.buyer, conversation.id, { text: 'Olá', clientId: 'unread-message-1' });
+    expect((await counts('seller')).unreadTotal).toBe(2);
+    expect((await counts('seller')).items[0].unreadCount).toBe(2);
+    const transactionEventIds = await eventIds('seller');
+    const response = await request(app).patch(`${url()}/read`).auth(tokens.seller, { type: 'bearer' })
+      .send({ messageIds: [text.id], transactionEventIds });
+    expect(response.status).toBe(200);
+    expect((await counts('seller')).unreadTotal).toBe(0);
+    const saved = await Transaction.findById(purchase.id);
+    expect(saved.updatedAt).toEqual(purchase.updatedAt);
+    expect(saved.revision).toBe(purchase.revision);
+    expect((await readEvents('seller', transactionEventIds)).status).toBe(200);
+    expect((await counts('seller')).unreadTotal).toBe(0);
+  });
+
+  it('não limpa novidades que chegaram depois da versão vista nem recibos do outro participante', async () => {
+    const purchase = await propose();
+    const seen = await eventIds('seller');
+    await act(purchase, 'accept');
+    const buyerEvents = await eventIds('buyer');
+    await act(purchase, 'confirm-buyer');
+    expect((await counts('seller')).unreadTotal).toBe(2);
+    expect((await readEvents('seller', [...seen, ...buyerEvents])).status).toBe(200);
+    expect((await counts('seller')).unreadTotal).toBe(1);
+    expect((await counts('buyer')).unreadTotal).toBe(1);
+    expect((await readEvents('buyer', await eventIds('seller'))).status).toBe(200);
+    expect((await counts('seller')).unreadTotal).toBe(1);
+  });
+
+  it('isola conversas e mantém o total global quando a lista é paginada', async () => {
+    await propose();
+    const second = await Conversation.create({ product: product.id, productTitle: product.title, buyer: actors.other, seller: actors.seller });
+    await transactionService.propose(actors.other, second.id, input);
+    const secondEvents = (await chatService.detail(actors.seller, second.id)).transactions[0].unreadEventIds;
+    const list = await chatService.list(actors.seller, 1, 1);
+    expect(list.unreadTotal).toBe(2);
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0].unreadCount).toBe(1);
+    await readEvents('seller', secondEvents);
+    expect((await counts('seller')).unreadTotal).toBe(2);
+    expect((await readEvents('other', await eventIds('seller'))).status).toBe(404);
+    await readEvents('seller', secondEvents, second.id);
+    expect((await counts('seller')).unreadTotal).toBe(1);
+  });
+
+  it('não gera alertas retroativos para compras antigas, mas conta a sua próxima alteração', async () => {
+    const purchase = await propose();
+    await Transaction.collection.updateOne({ _id: new mongoose.Types.ObjectId(purchase.id) }, { $unset: { unreadEvents: '' } });
+    expect(await eventIds('seller')).toEqual([]);
+    expect((await counts('seller')).unreadTotal).toBe(0);
+    await act(purchase, 'accept');
+    expect((await counts('buyer')).unreadTotal).toBe(1);
+  });
+
+  it('rejeita recibos vazios, inválidos ou demasiado grandes', async () => {
+    for (const body of [{}, { messageIds: [], transactionEventIds: [] }, { transactionEventIds: ['invalid'] },
+      { transactionEventIds: Array(101).fill(new mongoose.Types.ObjectId().toString()) }]) {
+      const response = await request(app).patch(`${url()}/read`).auth(tokens.seller, { type: 'bearer' }).send(body);
+      expect(response.status).toBe(422);
+    }
+  });
+});
+
 describe('compra dentro do chat', () => {
   it('percorre a API inteira com snapshots, timestamps, review e reputação reais', async () => {
     let response = await post('buyer', '/transactions', input);

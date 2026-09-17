@@ -6,6 +6,8 @@ import { Message } from '../models/Message.js';
 import { Product } from '../models/Product.js';
 import { AppError } from '../utils/AppError.js';
 import { transactionService } from './transactionService.js';
+import { Transaction } from '../models/Transaction.js';
+import { getUnreadChatCounts } from './chatUnreadService.js';
 
 const memberFilter = (userId) => ({ $or: [{ buyer: userId }, { seller: userId }] });
 const messageJson = (message) => ({ id: String(message._id), senderId: String(message.sender), text: message.text, clientId: message.clientId, createdAt: message.createdAt, readAt: message.readAt, removedAt: message.removedAt });
@@ -53,9 +55,9 @@ export const chatService = {
     return { id: String(conversation._id) };
   },
   async list(userId, page, limit) {
-    // Summaries are derived from persisted messages, so retries cannot corrupt counters.
+    // Count persisted messages and purchase events without mutable counters.
     const user = new mongoose.Types.ObjectId(userId);
-    const [items, total, unreadTotal] = await Promise.all([
+    const [items, total, unread] = await Promise.all([
       Conversation.aggregate([
         { $match: { $or: [{ buyer: user }, { seller: user }] } },
         { $lookup: { from: 'messages', let: { conversationId: '$_id' }, pipeline: [
@@ -73,7 +75,7 @@ export const chatService = {
         { $sort: { lastActivity: -1, _id: -1 } }, { $skip: (page - 1) * limit }, { $limit: limit }
       ]),
       Conversation.countDocuments(memberFilter(userId)),
-      Message.countDocuments({ recipient: userId, readAt: null })
+      getUnreadChatCounts(userId)
     ]);
     await Conversation.populate(items, { path: 'buyer seller', select: 'name avatarFilename status' });
     const summaries = await Promise.all(items.map(async (item) => {
@@ -84,10 +86,10 @@ export const chatService = {
       return {
         id: String(item._id), productId: String(item.product), productTitle: productTitle(item), ...availability(other),
         lastMessage: purchaseLatest ? purchaseLabels[purchase.status] : item.latest[0] && String(item.latest[0].sender) !== userId && (!other || isRemoved(other.status)) ? 'Mensagem removida' : item.latest[0]?.text || '', updatedAt: item.lastActivity,
-        unreadCount: await Message.countDocuments({ conversation: item._id, recipient: userId, readAt: null })
+        unreadCount: unread.byConversation.get(String(item._id)) || 0
       };
     }));
-    return { items: summaries, unreadTotal, pagination: { page, limit, total } };
+    return { items: summaries, unreadTotal: unread.total, pagination: { page, limit, total } };
   },
   async messages(userId, id, { before, limit }) {
     const detail = await this.detail(userId, id);
@@ -110,10 +112,15 @@ export const chatService = {
     if (message.text !== text) throw new AppError(409, 'MESSAGE_ID_REUSED', 'Este identificador já foi utilizado noutra mensagem.');
     return messageJson(message);
   },
-  async read(userId, id, messageIds) {
+  async read(userId, id, messageIds = [], transactionEventIds = []) {
     await requireMember(id, userId);
     // Only acknowledge messages actually displayed; concurrent arrivals remain unread.
-    await Message.updateMany({ _id: { $in: messageIds }, conversation: id, recipient: userId, readAt: null }, { $set: { readAt: new Date() } });
+    await Promise.all([
+      messageIds.length ? Message.updateMany({ _id: { $in: messageIds }, conversation: id, recipient: userId, readAt: null }, { $set: { readAt: new Date() } }) : null,
+      transactionEventIds.length ? Transaction.updateMany({ conversation: id,
+        unreadEvents: { $elemMatch: { _id: { $in: transactionEventIds }, recipient: userId } } },
+      { $pull: { unreadEvents: { _id: { $in: transactionEventIds }, recipient: userId } } }, { timestamps: false }) : null
+    ]);
     return { success: true };
   }
 };

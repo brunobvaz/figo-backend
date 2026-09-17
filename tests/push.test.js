@@ -6,6 +6,7 @@ import { app } from '../src/app.js';
 import { User } from '../src/models/User.js';
 import { Session } from '../src/models/Session.js';
 import { Message } from '../src/models/Message.js';
+import { Transaction } from '../src/models/Transaction.js';
 import { Conversation } from '../src/models/Conversation.js';
 import { PushDevice } from '../src/models/PushDevice.js';
 import { PushDelivery } from '../src/models/PushDelivery.js';
@@ -71,6 +72,16 @@ describe('notificações push', () => {
     await PushDelivery.deleteMany({});
     await queuePushMessages();
     expect(await PushDelivery.countDocuments()).toBe(0);
+  });
+  it('inclui novidades de compras no badge enviado com uma notificação de mensagem', async () => {
+    await Transaction.create({ conversation: message.conversation, product: new mongoose.Types.ObjectId(),
+      buyer: sender.id, seller: recipient.id, clientId: 'push-purchase', productTitle: 'Produto', unit: '€/kg',
+      quantity: 1, unitPriceSnapshot: 2, totalPriceSnapshot: 2,
+      unreadEvents: [{ recipient: recipient.id }, { recipient: recipient.id }, { recipient: sender.id }] });
+    await queuePushMessages();
+    const fetcher = vi.fn().mockResolvedValue(reply({ status: 'ok', id: 'receipt-purchase' }));
+    await processPushDeliveries({ fetcher });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).badge).toBe(3);
   });
   it('cancela entregas de uma conta anterior quando o dispositivo muda de conta', async () => {
     await queuePushMessages();

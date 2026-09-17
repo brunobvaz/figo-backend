@@ -61,10 +61,12 @@ Preenche `MONGODB_URI` com a connection string do Atlas, terminando em `/develop
 Compras no chat: migração, API e decisões em [docs/chat-purchases.md](docs/chat-purchases.md).
 
 ```bash
-npm run dev
-npm start
-npm test
+npm run dev   # Desenvolvimento: recarrega a API quando o código muda
+npm start     # Execução sem recarregamento: requer reinício após alterações
+npm test      # Testes numa base de dados temporária
 ```
+
+Nos testes com simuladores, usa `npm run dev`. O Fast Refresh do Expo atualiza apenas a aplicação móvel; as alterações no backend só ficam disponíveis depois de o processo da API recarregar ou reiniciar.
 
 Em desenvolvimento, os links de reset e verificação são escritos na consola pela abstração `EmailService`. Em produção, substitui essa implementação por um provider de email.
 

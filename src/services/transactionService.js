@@ -13,7 +13,7 @@ export const proposalInput = z.object({ quantity: z.number().int().min(1).max(99
 export const reviewInput = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().trim().max(2000).default(''), clientId }).strict();
 const forbidden = () => new AppError(403, 'TRANSACTION_FORBIDDEN', 'Não podes executar esta ação nesta compra.');
 const conflict = () => new AppError(409, 'INVALID_TRANSACTION_STATE', 'O estado desta compra mudou. Atualiza a conversa.');
-const json = row => ({
+const json = (row, userId) => ({
   id: String(row._id), conversationId: String(row.conversation), productId: String(row.product),
   buyerId: String(row.buyer), sellerId: String(row.seller), clientId: row.clientId,
   productTitle: row.productTitle, unit: row.unit, quantity: row.quantity,
@@ -22,6 +22,7 @@ const json = row => ({
   acceptedAt: row.acceptedAt, declinedAt: row.declinedAt, buyerConfirmedAt: row.buyerConfirmedAt,
   buyerAgreementConfirmedAt: row.buyerAgreementConfirmedAt, sellerAgreementConfirmedAt: row.sellerAgreementConfirmedAt,
   completedAt: row.completedAt, reviewedAt: row.reviewedAt,
+  unreadEventIds: (row.unreadEvents || []).filter(event => String(event.recipient) === userId).map(event => String(event._id)),
   reviews: row.reviews.map(review => ({ id: String(review._id), transactionId: String(row._id),
     reviewerId: String(review.reviewer), reviewedUserId: String(review.reviewedUser),
     rating: review.rating, comment: review.comment, createdAt: review.createdAt }))
@@ -32,8 +33,8 @@ const sellerReviews = { $filter: { input: '$reviews', as: 'review', cond: { $and
   { $eq: ['$$review.reviewer', '$buyer'] }, { $eq: ['$$review.reviewedUser', '$seller'] },
   { $gte: ['$$review.rating', 1] }, { $lte: ['$$review.rating', 5] }, { $eq: ['$$review.rating', { $floor: '$$review.rating' }] }
 ] } } };
-function visibleJson(row, removed) {
-  const result = json(row);
+function visibleJson(row, removed, userId) {
+  const result = json(row, userId);
   if (removed.includes(result.sellerId)) result.productTitle = 'Anúncio indisponível';
   for (const review of result.reviews) if (removed.includes(review.reviewerId) || removed.includes(review.reviewedUserId)) review.comment = '';
   return result;
@@ -75,14 +76,15 @@ async function transition(userId, conversationId, transactionId, action) {
   return withPurchaseAccounts(conversation, userId, async () => {
     const current = await owned(userId, conversationId, transactionId, role);
     // A replay never changes the original timestamp or regresses a later state.
-    if (current[timestamp]) return json(current);
+    if (current[timestamp]) return json(current, userId);
     if (current.status !== from) throw conflict();
     const now = new Date();
     const dates = { [timestamp]: now, ...(action === 'complete' ? { buyerConfirmedAt: now } : {}) };
+    const recipient = role === 'buyer' ? current.seller : current.buyer;
     const saved = await Transaction.findOneAndUpdate({ _id: current._id, [role]: userId, status: from },
-      { $set: { status: to, ...dates }, $inc: { revision: 1 } }, { new: true, runValidators: true });
+      { $set: { status: to, ...dates }, $inc: { revision: 1 }, $push: { unreadEvents: { recipient } } }, { new: true, runValidators: true });
     if (!saved) throw conflict();
-    return json(saved);
+    return json(saved, userId);
   });
 }
 
@@ -96,7 +98,7 @@ export const transactionService = {
     ]);
     const seller = participants.find(person => String(person._id) === String(conversation.seller));
     const removed = participants.filter(person => ['deleted', 'deletion_pending'].includes(person.status)).map(person => String(person._id));
-    const history = transactions.map(row => visibleJson(row, removed));
+    const history = transactions.map(row => visibleJson(row, removed, userId));
     const available = product?.status === 'active' && product.is_active !== false && seller?.status === 'active';
     return { buyerId: String(conversation.buyer), sellerId: String(conversation.seller), transactions: history,
       purchaseProduct: available ? { title: product.title, price: product.price, unit: product.unit } : null,
@@ -111,7 +113,7 @@ export const transactionService = {
       const replay = await Transaction.findOne(key);
       if (replay) {
         if (replay.quantity !== data.quantity || replay.unitPriceSnapshot !== data.expectedUnitPrice) throw new AppError(409, 'PROPOSAL_ID_REUSED', 'Este identificador já foi utilizado noutra proposta.');
-        return json(replay);
+        return json(replay, userId);
       }
       const product = await Product.findOne({ _id: conversation.product, seller: conversation.seller, status: 'active', is_active: { $ne: false } });
       if (!product) throw new AppError(409, 'PRODUCT_UNAVAILABLE', 'O produto já não está disponível para novas propostas.');
@@ -121,7 +123,8 @@ export const transactionService = {
       try {
         return json(await Transaction.create({ ...key, product: product._id, seller: conversation.seller,
           productTitle: product.title, unit: product.unit, quantity: data.quantity,
-          unitPriceSnapshot: product.price, totalPriceSnapshot: totalCents / 100 }));
+          unitPriceSnapshot: product.price, totalPriceSnapshot: totalCents / 100,
+          unreadEvents: [{ recipient: conversation.seller }] }), userId);
       } catch (error) {
         if (error.code !== 11000) throw error;
         throw new AppError(409, 'ACTIVE_TRANSACTION_EXISTS', 'Já existe uma compra em curso nesta conversa.');
@@ -136,16 +139,17 @@ export const transactionService = {
       const current = await owned(userId, conversationId, transactionId, 'buyer');
       const previous = current.reviews.find(review => String(review.reviewer) === userId);
       if (previous) {
-        if (previous.clientId === data.clientId && previous.rating === data.rating && previous.comment === data.comment) return json(current);
+        if (previous.clientId === data.clientId && previous.rating === data.rating && previous.comment === data.comment) return json(current, userId);
         throw new AppError(409, 'REVIEW_ALREADY_EXISTS', 'Já avaliaste este vendedor nesta compra.');
       }
       if (current.status !== 'completed') throw conflict();
       const now = new Date();
       const saved = await Transaction.findOneAndUpdate({ _id: current._id, buyer: userId, status: 'completed', 'reviews.reviewer': { $ne: userId } },
         { $set: { status: 'reviewed', reviewedAt: now }, $inc: { revision: 1 },
-          $push: { reviews: { ...data, reviewer: userId, reviewedUser: current.seller, createdAt: now } } }, { new: true, runValidators: true });
+          $push: { reviews: { ...data, reviewer: userId, reviewedUser: current.seller, createdAt: now },
+            unreadEvents: { recipient: current.seller } } }, { new: true, runValidators: true });
       if (!saved) throw conflict();
-      return json(saved);
+      return json(saved, userId);
     });
   },
   async reputation(userId) {
@@ -210,7 +214,7 @@ export const transactionService = {
     const removed = people.filter(person => ['deleted', 'deletion_pending'].includes(person.status)).map(person => String(person._id));
     return { items: rows.map(row => {
       const other = byId.get(String(role === 'buyer' ? row.seller : row.buyer));
-      return { ...visibleJson(row, removed), participantName: other?.status === 'active' ? other.name : removed.includes(String(other?._id)) || !other ? 'Conta eliminada' : 'Utilizador indisponível' };
+      return { ...visibleJson(row, removed, userId), participantName: other?.status === 'active' ? other.name : removed.includes(String(other?._id)) || !other ? 'Conta eliminada' : 'Utilizador indisponível' };
     }), pagination: { page, limit, total } };
   }
 };

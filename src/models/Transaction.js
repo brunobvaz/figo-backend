@@ -33,6 +33,11 @@ const schema = new mongoose.Schema({
   buyerConfirmedAt: Date,
   completedAt: Date,
   reviewedAt: Date,
+  // Saved atomically with each purchase action; exact IDs let receipts leave
+  // concurrent arrivals unread. Legacy purchases start without notifications.
+  unreadEvents: { type: [new mongoose.Schema({
+    recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  })], default: [] },
   reviews: { type: [reviewSchema], default: [] }
 }, { timestamps: true });
 schema.index({ conversation: 1, buyer: 1, clientId: 1 }, { unique: true });
@@ -40,6 +45,7 @@ schema.index({ conversation: 1, buyer: 1, clientId: 1 }, { unique: true });
 schema.index({ conversation: 1 }, { name: 'one_active_chat_purchase_v2', unique: true,
   partialFilterExpression: { status: { $in: activeTransactionStatuses } } });
 schema.index({ conversation: 1, createdAt: 1 });
+schema.index({ 'unreadEvents.recipient': 1, conversation: 1 });
 schema.index({ 'reviews.reviewedUser': 1, status: 1 });
 schema.index({ buyer: 1, updatedAt: -1 });
 schema.index({ seller: 1, status: 1, updatedAt: -1 });

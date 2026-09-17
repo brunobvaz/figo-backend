@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { Session } from '../models/Session.js';
 import { PushDevice } from '../models/PushDevice.js';
 import { PushDelivery } from '../models/PushDelivery.js';
+import { getUnreadChatCounts } from './chatUnreadService.js';
 
 const minute = 60000;
 const setDelivery = (job, values) => PushDelivery.updateOne({ _id: job._id }, { $set: values });
@@ -68,10 +69,10 @@ export async function processPushDeliveries({ now = new Date(), fetcher = fetch 
         User.exists({ _id: device.user, status: 'active' }), User.findById(message.sender).select('name status')
       ]);
       if (!session || !recipient || sender?.status !== 'active' || message.removedAt) { await setDelivery(job, { status: 'done', lastError: 'SESSION_INACTIVE' }); continue; }
-      const unread = await Message.countDocuments({ recipient: device.user, readAt: null });
+      const unread = await getUnreadChatCounts(device.user);
       const ticket = await expoRequest('send', {
         to: device.token, title: 'Figo', body: `Nova mensagem de ${(sender?.name || 'um utilizador').slice(0, 80)}`,
-        sound: 'default', channelId: 'messages', badge: unread, ttl: 3600,
+        sound: 'default', channelId: 'messages', badge: unread.total, ttl: 3600,
         data: { type: 'chat.message', conversationId: String(message.conversation), messageId: String(message._id), recipientId: String(device.user) }
       }, fetcher);
       if (ticket.status === 'ok' && ticket.id) await setDelivery(job, { status: 'receipt', ticket: ticket.id, nextAttempt: new Date(+now + 15 * minute), lastError: null });
