@@ -5,6 +5,7 @@ import productRoutes from './productRoutes.js';
 import chatRoutes from './chatRoutes.js';
 import pushRoutes from './pushRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import recipeRoutes from './recipeRoutes.js';
 
 import locationRoutes from './locationRoutes.js';
 const router = Router();
@@ -13,6 +14,7 @@ router.use('/locations', locationRoutes);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
+router.use('/recipes', recipeRoutes);
 router.use('/conversations', chatRoutes);
 router.use('/push', pushRoutes);
 export default router;

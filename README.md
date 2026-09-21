@@ -271,6 +271,14 @@ Define `BACKOFFICE_ORIGIN` com a origem exata do frontend (desenvolvimento: `htt
 
 Consulta `../backoffice/README.md` para execução, configuração do proxy em produção, funcionalidades e testes.
 
+### Receitas do backoffice
+
+CRUD administrativo na collection `recipes`, protegido pelas mesmas sessões de administradores. Mantém os campos editoriais e passos de preparação opcionais. A app lê as receitas através de `GET /api/v1/recipes`, com filtros e paginação, o detalhe através de `GET /api/v1/recipes/:id` e as fotografias através de `GET /api/v1/recipes/:id/image`; a escrita permanece exclusiva do backoffice. Contrato, endpoints, limites e testes em [docs/backoffice-recipes.md](docs/backoffice-recipes.md).
+
+### Eventos do backoffice
+
+CRUD administrativo na collection `events`, com os campos de `FairsEventsScreen`/`mockEvents.js`: tipo, data local, horário, local, descrição, entrada gratuita, distância de referência e fotografia. Inclui pesquisa, filtros, paginação e upload persistido no MongoDB. A app continua a usar os mocks. Contrato, endpoints, limites e testes em [docs/backoffice-events.md](docs/backoffice-events.md).
+
 ### Destaques de anúncios
 
 O campo `Product.featured` tem valor inicial `false`. Apenas `PATCH /api/v1/admin/products/:id` aceita a alteração deste campo; as rotas de criação e edição de produtos da app rejeitam-no. `GET /api/v1/products?featured=true` filtra no MongoDB antes da paginação e mantém as regras de publicação e estado da conta. Valores ausentes em documentos antigos são tratados como `false`, sem migração obrigatória.

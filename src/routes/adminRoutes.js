@@ -9,6 +9,8 @@ import { adminCookie, adminCookieOptions, adminSessionDuration, adminRequestGuar
 import { createLimiter } from '../middleware/rateLimiters.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
+import adminRecipeRoutes from './adminRecipeRoutes.js';
+import adminEventRoutes from './adminEventRoutes.js';
 
 const router = Router();
 const ok = (res, data) => res.json({ success: true, data });
@@ -36,6 +38,8 @@ router.post('/auth/logout', asyncHandler(async (req, res) => {
   ok(res, null);
 }));
 router.use(authenticateAdmin);
+router.use('/recipes', adminRecipeRoutes);
+router.use('/events', adminEventRoutes);
 router.get('/auth/me', (req, res) => ok(res, { admin: adminSummary(req.admin) }));
 router.get('/dashboard', asyncHandler(async (req, res) => ok(res, await adminService.dashboard(req.query))));
 router.get('/products', asyncHandler(async (req, res) => ok(res, await adminService.products(req.query))));

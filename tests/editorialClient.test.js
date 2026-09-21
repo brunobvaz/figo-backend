@@ -1,17 +1,21 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import recipes from '../../mobile/src/data/mockRecipes.js';
+import { recipeService } from '../../mobile/src/services/recipeService.js';
 import { editorialService, filterRecipes, filterEvents, localEventDate } from '../../mobile/src/services/editorialService.js';
+vi.mock('../../mobile/src/services/recipeService.js', () => ({ recipeService: { page: vi.fn() } }));
 
-it('carrega seis mocks de cada tipo, com IDs únicos, sem partilhar dados mutáveis', async () => {
-  const recipes = await editorialService.getSeasonalRecipes();
+it('lê receitas da API paginada e conserva o carregamento atual dos eventos', async () => {
+  const response = { items: [{ id: 'real-recipe' }], pagination: { page: 2, pages: 2 } };
+  recipeService.page.mockResolvedValueOnce(response);
+  expect(await editorialService.getSeasonalRecipes({ filter: 'Sopas', page: 2 })).toBe(response);
+  expect(recipeService.page).toHaveBeenCalledExactlyOnceWith({ filter: 'Sopas', page: 2 });
   const events = await editorialService.getLocalEvents();
-  expect(recipes).toHaveLength(6); expect(events).toHaveLength(6);
-  expect(new Set(recipes.map(x => x.id)).size).toBe(6); expect(new Set(events.map(x => x.id)).size).toBe(6);
-  recipes[0].ingredients.push('alterado'); events[0].title = 'alterado';
-  expect((await editorialService.getSeasonalRecipes())[0].ingredients).not.toContain('alterado');
+  expect(events).toHaveLength(6);
+  expect(new Set(events.map(x => x.id)).size).toBe(6);
+  events[0].title = 'alterado';
   expect((await editorialService.getLocalEvents())[0].title).not.toBe('alterado');
 });
-it('filtra receitas rápidas, vegetarianas, doces e sopas', async () => {
-  const recipes = await editorialService.getSeasonalRecipes();
+it('filtra receitas rápidas, vegetarianas, doces e sopas', () => {
   expect(filterRecipes(recipes, 'Todos')).toHaveLength(6);
   expect(filterRecipes(recipes, 'Rápidas')).toHaveLength(3);
   expect(filterRecipes(recipes, 'Rápidas').every(x => x.preparationMinutes <= 30)).toBe(true);

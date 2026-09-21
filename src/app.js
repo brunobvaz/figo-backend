@@ -16,6 +16,8 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: origins, credentials: true }));
+// Recipe text includes ingredients and preparation steps; keep other API limits unchanged.
+app.use('/api/v1/admin/recipes', express.json({ limit: '128kb' }));
 app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
 app.use(noSqlSanitize);
 
