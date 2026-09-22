@@ -8,7 +8,10 @@ export async function editorialImageFields(file, errorCode) {
     const image = sharp(file.buffer, { limitInputPixels: 40_000_000 });
     const metadata = await image.metadata();
     if (!['jpeg', 'png', 'webp'].includes(metadata.format) || (metadata.pages || 1) > 1) throw failure();
-    const imageData = await image.rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+    // Match the backoffice's centred 4:5 preview; auto-orient before cropping.
+    const imageData = await image.rotate()
+      .resize({ width: 1080, height: 1350, fit: 'cover', position: 'centre' })
+      .webp({ quality: 82, effort: 5 }).toBuffer();
     if (imageData.length > 5 * 1024 * 1024) throw failure();
     return { image: null, imageData, imageMimeType: 'image/webp', imageVersion: randomUUID() };
   } catch (error) {

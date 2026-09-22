@@ -277,7 +277,7 @@ CRUD administrativo na collection `recipes`, protegido pelas mesmas sessões de 
 
 ### Eventos do backoffice
 
-CRUD administrativo na collection `events`, com os campos de `FairsEventsScreen`/`mockEvents.js`: tipo, data local, horário, local, descrição, entrada gratuita, distância de referência e fotografia. Inclui pesquisa, filtros, paginação e upload persistido no MongoDB. A app continua a usar os mocks. Contrato, endpoints, limites e testes em [docs/backoffice-events.md](docs/backoffice-events.md).
+CRUD administrativo na collection `events`: tipo, data local, horário, local, descrição, entrada gratuita, distância de referência e fotografia. A app consulta a mesma base através de `GET /api/v1/events`, `GET /api/v1/events/:id` e `GET /api/v1/events/:id/image`, com filtros, paginação e imagens persistidas no MongoDB. A escrita permanece exclusiva do backoffice. Contrato, endpoints, limites e testes em [docs/backoffice-events.md](docs/backoffice-events.md).
 
 ### Destaques de anúncios
 

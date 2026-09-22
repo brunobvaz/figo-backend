@@ -98,7 +98,7 @@ it('entrega a foto carregada sem cookies administrativos e respeita a versão da
   const image = await request(app).get(recipe.image);
   expect(image.status).toBe(200);
   expect(image.headers['content-type']).toContain('image/webp');
-  expect(await sharp(image.body).metadata()).toMatchObject({ width: 72, height: 48, format: 'webp' });
+  expect(await sharp(image.body).metadata()).toMatchObject({ width: 1080, height: 1350, format: 'webp' });
   expect(image.headers['cache-control']).toBe('public, max-age=0, must-revalidate');
   expect((await request(app).get(recipe.image).set('If-None-Match', image.headers.etag)).status).toBe(304);
   expect((await request(app).get(created.body.data.image)).status).toBe(403);

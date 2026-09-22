@@ -125,7 +125,7 @@ it('guarda a foto no MongoDB, preserva em edições e permite substituir, limpar
   expect(created.body.data.hasUploadedImage).toBe(true);
   const delivered = await call('get', `/${id}/image`);
   expect(delivered.headers['cache-control']).toBe('no-store');
-  expect(await sharp(delivered.body).metadata()).toMatchObject({ format: 'webp', width: 64, height: 48 });
+  expect(await sharp(delivered.body).metadata()).toMatchObject({ format: 'webp', width: 1080, height: 1350 });
   expect((await Event.findById(id)).imageData).toBeUndefined();
   const edited = await call('patch', `/${id}`).send({ title: 'Feira com fotografia' });
   expect(edited.body.data.image).toBe(image);
@@ -160,7 +160,7 @@ it('recusa uploads malformados e ficheiros excessivos sem criar eventos', async 
   expect(await Event.countDocuments()).toBe(0);
 });
 
-it('exige administrador, origem e header em todas as rotas, sem endpoint público', async () => {
+it('exige administrador, origem e header em todas as rotas administrativas, mantendo a leitura pública', async () => {
   const user = await User.create({ name: 'Utilizador', email: 'user@figo.test', passwordHash, termsAcceptedAt: new Date() });
   const session = await Session.create({ userId: user._id, refreshTokenHash: 'test', expiresAt: new Date(Date.now() + 60000) });
   const token = tokenService.generateAccessToken(user, session.id);
@@ -172,7 +172,7 @@ it('exige administrador, origem e header em todas as rotas, sem endpoint públic
     expect((await request(app)[method](`${endpoint}${path}`).set({ ...headers, Origin: 'https://evil.test' }).set('Cookie', cookie).send()).status).toBe(403);
   }
   expect((await request(app).post(endpoint).set(headers).field('data', JSON.stringify(input)).attach('image', await photo('#fff'), 'foto.png')).status).toBe(401);
-  expect((await request(app).get('/api/v1/events')).status).toBe(404);
+  expect((await request(app).get('/api/v1/events')).status).toBe(200);
   await Admin.updateOne({ _id: admin.id }, { $set: { status: 'disabled' } });
   expect((await call('get')).status).toBe(401);
 });

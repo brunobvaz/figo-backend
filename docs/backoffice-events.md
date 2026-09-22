@@ -1,6 +1,6 @@
 # Eventos no backoffice
 
-CRUD administrativo na collection MongoDB `events`, na base configurada no backend. Os campos seguem `mobile/src/data/mockEvents.js`, usado por `FairsEventsScreen` e `EventCard`. Não são importados mocks nem criados eventos automaticamente. A app continua a usar os dados de demonstração; este trabalho não altera o mobile nem cria endpoints públicos.
+CRUD administrativo na collection MongoDB `events`, na base configurada no backend. A app lê os mesmos documentos através da API pública de eventos, tanto na listagem como no detalhe e nas fotografias. Não são importados mocks nem criados eventos automaticamente.
 
 ## Campos
 
@@ -19,7 +19,7 @@ CRUD administrativo na collection MongoDB `events`, na base configurada no backe
 
 O servidor acrescenta `id`, `createdAt`, `updatedAt` e `hasUploadedImage` nas respostas. `createdBy` e `updatedBy` são definidos pela sessão administrativa e não são expostos. Campos desconhecidos são rejeitados. O PATCH conserva os campos omitidos e valida o intervalo de horas considerando também os dados existentes. Datas passadas são permitidas para manter o histórico. Eventos que terminam noutro dia requerem uma futura extensão do contrato.
 
-## API
+## API administrativa
 
 Todas as rotas exigem a sessão de um administrador ativo, cookie `figo_admin`, header `X-Figo-Backoffice: 1` e origem autorizada. Tokens de utilizadores da app não permitem acesso. As respostas usam `Cache-Control: no-store`.
 
@@ -38,11 +38,29 @@ Validações inválidas devolvem 422 com `error.details`, identificando o campo 
 
 ## Fotografias
 
-POST/PATCH aceitam JSON ou `multipart/form-data` com `data` (JSON) e `image` (um ficheiro). O upload partilha a validação e otimização das receitas: JPEG, PNG ou WebP até 5 MB, máximo 40 milhões de píxeis na origem, convertido em WebP até 1600 × 1600 sem metadados e sem animação. É guardado no documento MongoDB, sem depender do disco do Render.
+POST/PATCH aceitam JSON ou `multipart/form-data` com `data` (JSON) e `image` (um ficheiro). O upload partilha a validação e otimização das receitas: JPEG, PNG ou WebP até 5 MB, máximo 40 milhões de píxeis na origem, orientação EXIF corrigida e convertido em WebP de **1080 × 1350 px (4:5)**, com recorte central sem deformação, qualidade 82 e esforço de compressão 5, sem metadados e sem animação. Imagens pequenas são ampliadas para as dimensões exatas. É guardado no documento MongoDB, sem depender do disco do Render. O formulário antecipa o recorte antes de guardar. Esta regra aplica-se a novos uploads e substituições; as imagens já guardadas e URLs externos mantêm-se.
 
 Quando há upload, `image` na resposta é uma rota administrativa versionada e `hasUploadedImage` é `true`; o binário nunca entra na listagem JSON. Omitir a imagem num PATCH preserva-a; `image: null` remove-a; uma nova fotografia ou URL substitui-a. Enviar URL e ficheiro juntos é rejeitado. Falhas de validação não alteram o documento. Cancelar a edição não grava alterações.
 
-No futuro, a integração móvel deverá disponibilizar um contrato público próprio e decidir como calcular a distância a partir da localização. Não deve usar cookies ou rotas administrativas.
+## API pública e aplicação mobile
+
+| Método e rota | Resultado |
+|---|---|
+| `GET /api/v1/events` | Lista paginada, ordenada por data, hora de início e ID |
+| `GET /api/v1/events/:id` | Detalhe atual, ou 404 se o evento foi eliminado |
+| `GET /api/v1/events/:id/image?v=<versão>` | Fotografia WebP carregada no backoffice, sem sessão administrativa |
+
+A listagem aceita `type`, `from` e `to` (dias inclusivos), `free=true|false`, `page` (inicial 1) e `limit` (inicial 20, máximo 100). Os filtros são aplicados antes da paginação. Responde com `{ success: true, data: { items, pagination: { page, limit, total, pages } } }`. A lista sem filtros inclui todos os eventos guardados, incluindo o histórico. Parâmetros e identificadores inválidos devolvem 422; intervalos invertidos também são rejeitados.
+
+Lista e detalhe expõem apenas `id`, título, descrição, tipo, data, horário, local, distância de referência, entrada gratuita e URL da imagem. Não incluem auditoria, campos internos ou o binário da fotografia. Não há rotas públicas de escrita. As rotas administrativas mantêm as suas proteções.
+
+Lista e detalhe usam `Cache-Control: no-store`. Fotografias usam a rota pública versionada e `Cache-Control: public, max-age=0, must-revalidate`, com ETag. Uma versão substituída, fotografia removida ou evento eliminado devolve 404. URLs externos HTTPS mantêm-se como foram configurados.
+
+`FairsEventsScreen` usa `editorialService` → `eventService` → API, com páginas de 20 eventos, carregamento, estado vazio, erro recuperável, atualização manual e nova consulta ao regressar ao ecrã/primeiro plano. Todos, Esta semana (segunda a domingo), Este mês, Feiras e Mercados são traduzidos em filtros da API, preservando os dias do calendário local sem conversão para UTC. Ao tocar num card, `EventDetailScreen` recebe `eventId` e consulta o detalhe atual; eventos eliminados apresentam “Evento indisponível”.
+
+Os mocks ficam apenas como fixtures de teste; uma falha de ligação nunca é substituída por eventos fictícios. `distanceKm` continua a ser o valor editorial do backoffice, apresentado como “Distância de referência”. O modelo ainda não contém coordenadas para calcular a distância por utilizador, pelo que a interface não promete proximidade à sua posição.
+
+Para disponibilizar a integração num ambiente publicado, atualizar primeiro o backend e depois a app, configurando `EXPO_PUBLIC_API_BASE_URL` para o mesmo backend utilizado pelo backoffice. Não é necessária migração nem reintroduzir eventos existentes.
 
 ## Organização da interface
 
@@ -52,7 +70,7 @@ Receitas e eventos utilizam os componentes comuns `Table`, `Toolbar`, `RowAction
 
 ## Validação
 
-- Backend: `npm test -- tests/adminEvents.test.js tests/adminRecipes.test.js tests/admin.test.js`.
+- Backend e mobile: `npm test -- tests/publicEvents.test.js tests/adminEvents.test.js tests/eventServiceClient.test.js tests/eventsScreenClient.test.js tests/editorialClient.test.js`.
 - Interface local: `npm run test:e2e`.
 - Worker local HTTPS: `npm run test:e2e:cloudflare -- tests/events.spec.js tests/recipes.spec.js`.
 - Build: `npm run build`.

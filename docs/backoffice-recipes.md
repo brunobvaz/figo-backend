@@ -22,7 +22,9 @@ Textos são aparados antes de gravar. Nomes de campos desconhecidos são rejeita
 
 ### Upload de fotografia
 
-`POST` e `PATCH` também aceitam `multipart/form-data`, com um campo `data` contendo o JSON da receita e um ficheiro `image`. JPEG, PNG e WebP são aceites até 5 MB. O backend valida o conteúdo, rejeita imagens animadas, limita a resolução de entrada a 40 milhões de píxeis e converte para WebP até 1600 × 1600, respeitando as proporções e a orientação, sem metadados. A fotografia é gravada como binário na própria receita, sem depender do disco local do servidor.
+`POST` e `PATCH` também aceitam `multipart/form-data`, com um campo `data` contendo o JSON da receita e um ficheiro `image`. JPEG, PNG e WebP são aceites até 5 MB. O backend valida o conteúdo, rejeita imagens animadas e limita a resolução de entrada a 40 milhões de píxeis. Corrige a orientação EXIF e gera WebP de **1080 × 1350 px (4:5)**, com recorte central sem deformação (`cover`), qualidade 82, esforço de compressão 5 e sem metadados. Imagens pequenas são ampliadas para garantir as dimensões exatas; recomenda-se carregar fotografias com pelo menos 1080 × 1350 px. A fotografia é gravada como binário na própria receita, sem depender do disco local do servidor.
+
+O formulário antecipa o recorte central 4:5 do novo ficheiro. O processamento aplica-se a novos uploads e substituições; editar apenas os textos preserva a imagem existente. Fotografias antigas não são convertidas automaticamente e URLs externos não são transferidos nem transformados.
 
 As respostas incluem `hasUploadedImage`. Quando existe upload, `image` contém a rota administrativa `/api/v1/admin/recipes/:id/image?v=…`; o binário não é incluído nas respostas JSON. Um PATCH sem imagem preserva a fotografia. `image: null` remove-a; um novo ficheiro ou URL HTTPS substitui-a. Não é permitido enviar simultaneamente um ficheiro e um URL. Eliminar a receita elimina também o seu binário. No formulário, selecionar ou remover uma fotografia só persiste ao guardar; cancelar descarta a alteração.
 

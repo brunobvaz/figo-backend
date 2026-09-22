@@ -167,7 +167,7 @@ it('carrega, lê, preserva, substitui e remove uma fotografia persistida na pró
   expect(delivered.status).toBe(200);
   expect(delivered.headers['content-type']).toContain('image/webp');
   expect(delivered.headers['cache-control']).toBe('no-store');
-  expect(await sharp(delivered.body).metadata()).toMatchObject({ format: 'webp', width: 64, height: 48 });
+  expect(await sharp(delivered.body).metadata()).toMatchObject({ format: 'webp', width: 1080, height: 1350 });
   expect(delivered.body.equals(stored.imageData)).toBe(true);
   const changed = await call('patch', `/${recipe.id}`).send({ title: 'Receita com fotografia' });
   expect(changed.body.data.image).toBe(recipe.image);
