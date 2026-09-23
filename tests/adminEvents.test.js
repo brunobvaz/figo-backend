@@ -12,11 +12,12 @@ import { User } from '../src/models/User.js';
 import { Session } from '../src/models/Session.js';
 import { tokenService } from '../src/services/tokenService.js';
 import mockEvents from '../../mobile/src/data/mockEvents.js';
+import { eventLocationInput, eventLocation, seedEventLocations } from './fixtures/eventLocations.js';
 
 let mongo, passwordHash, admin, cookie;
 const password = 'Recipe-test-only-2026';
 const headers = { Origin: 'http://localhost:5173', 'X-Figo-Backoffice': '1' };
-const input = { title: 'Feira da horta', description: 'Encontro com produtores locais.', type: 'Feira', date: '2028-02-29', startTime: '09:00', endTime: '18:00', location: 'Chaves', distanceKm: 0, free: true };
+const input = { title: 'Feira da horta', description: 'Encontro com produtores locais.', type: 'Feira', date: '2028-02-29', startTime: '09:00', endTime: '18:00', location: 'Chaves', distanceKm: 0, free: true, ...eventLocationInput };
 const endpoint = '/api/v1/admin/events';
 const call = (method, path = '') => request(app)[method](`${endpoint}${path}`).set(headers).set('Cookie', cookie);
 
@@ -28,6 +29,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => {
+  await seedEventLocations();
   await Promise.all([Admin, AdminSession, Event, User, Session].map(model => model.deleteMany({})));
   admin = await Admin.create({ name: 'Editor Figo', email: 'recipes@figo.test', passwordHash });
   const login = await request(app).post('/api/v1/admin/auth/login').set(headers).send({ email: admin.email, password });
@@ -39,7 +41,8 @@ it('cria, consulta, edita e elimina eventos com datas locais e auditoria adminis
   const created = await call('post').send({ ...input, title: ' Feira da horta ' });
   expect(created.status, JSON.stringify(created.body)).toBe(201);
   const event = created.body.data;
-  expect(event).toMatchObject({ ...input, image: null, hasUploadedImage: false });
+  const { municipalityCode, parishCode, ...editorialFields } = input;
+  expect(event).toMatchObject({ ...editorialFields, ...eventLocation(input.location), image: null, hasUploadedImage: false });
   expect(event).not.toHaveProperty('createdBy');
   expect(event).not.toHaveProperty('imageData');
   expect(event).not.toHaveProperty('__v');
@@ -64,7 +67,7 @@ it('cria, consulta, edita e elimina eventos com datas locais e auditoria adminis
 it('aceita os campos dos mocks sem importar automaticamente eventos', async () => {
   expect((await call('get')).body.data.items).toEqual([]);
   for (const { id, ...event } of mockEvents) {
-    const response = await call('post').send(event);
+    const response = await call('post').send({ ...event, ...eventLocationInput });
     expect(response.status, id).toBe(201);
     expect(response.body.data).toMatchObject(event);
   }
@@ -77,7 +80,10 @@ it.each([
   ['startTime', '24:00'], ['startTime', '9:00'], ['endTime', '08:00'], ['endTime', '09:00'],
   ['distanceKm', -1], ['distanceKm', '12'], ['distanceKm', 20001], ['free', 'true'],
   ['description', 'a'.repeat(2001)], ['image', 'http://example.com/a.png'], ['image', 'https://user:secret@example.com/a.png'],
-  ['createdBy', '000000000000000000000001'], ['ingredients', ['Batata']]
+  ['createdBy', '000000000000000000000001'], ['ingredients', ['Batata']],
+  ['municipalityCode', ''], ['parishCode', ''], ['municipalityCode', '040701'], ['parishCode', '0407'],
+  ['geo', { type: 'Point', coordinates: [0, 0] }], ['latitude', 0], ['locationSource', 'manual'],
+  ['address', { municipalityCode: '0407' }]
 ])('rejeita %s inválido sem gravar (%j)', async (field, value) => {
   const response = await call('post').send({ ...input, [field]: value });
   expect(response.status).toBe(422);
@@ -117,6 +123,82 @@ it('filtra por tipo, período inclusivo, entrada e pesquisa literal; pagina por 
 });
 
 const photo = color => sharp({ create: { width: 64, height: 48, channels: 3, background: color } }).png().toBuffer();
+
+it('exige concelho e freguesia na criação e rejeita combinações incompatíveis sem gravar', async () => {
+  const { municipalityCode, parishCode, ...legacy } = input;
+  for (const body of [legacy, { ...legacy, municipalityCode }, { ...legacy, parishCode },
+    { ...input, municipalityCode: '0302' }, { ...input, parishCode: '040799' }]) {
+    const response = await call('post').send(body);
+    expect(response.status).toBe(422);
+  }
+  expect(await Event.countDocuments()).toBe(0);
+});
+
+it('guarda coordenadas canónicas e texto livre; edições parciais preservam ou atualizam a localização', async () => {
+  const created = await call('post').send({ ...input, location: '  Recinto da festa, junto à escola  ' });
+  expect(created.status).toBe(201);
+  const { id } = created.body.data;
+  expect(created.body.data).toMatchObject({ location: 'Recinto da festa, junto à escola', ...eventLocation('Recinto da festa, junto à escola') });
+  expect((await Event.findById(id)).geo.coordinates).toEqual([-7.18, 41.48]);
+  expect((await call('get', '?search=Abambres')).body.data.pagination.total).toBe(1);
+  expect((await call('get', '?search=Mirandela')).body.data.pagination.total).toBe(1);
+
+  const locality = await call('patch', `/${id}`).send({ location: 'Outra zona livre' });
+  expect(locality.body.data).toMatchObject({ location: 'Outra zona livre', ...eventLocation('Outra zona livre') });
+  const unchanged = locality.body.data;
+  for (const change of [{ municipalityCode: '0302' }, { parishCode: '040702' },
+    { municipalityCode: '0302', parishCode: '040701', location: 'Não gravar' }]) {
+    const response = await call('patch', `/${id}`).send(change);
+    expect(response.status).toBe(422);
+    expect(response.body.error.details[0].field).toMatch(/municipalityCode|parishCode/);
+    expect((await call('get', `/${id}`)).body.data).toEqual(unchanged);
+  }
+  const moved = await call('patch', `/${id}`).send({ municipalityCode: '0302', parishCode: '0302FA' });
+  expect(moved.status).toBe(200);
+  expect(moved.body.data).toMatchObject({
+    location: 'Outra zona livre', address: { municipalityCode: '0302', parishCode: '0302FA', municipality: 'Barcelos', locality: 'Outra zona livre' },
+    geo: { type: 'Point', coordinates: [-8.6, 41.5] }, locationSource: 'parish'
+  });
+  const indexes = await Event.collection.indexes();
+  expect(indexes.some(index => index.key.geo === '2dsphere')).toBe(true);
+  expect(await Event.find({ geo: { $near: { $geometry: { type: 'Point', coordinates: [-8.6, 41.5] }, $maxDistance: 100 } } })).toHaveLength(1);
+});
+
+it('permite completar eventos antigos sem coordenadas inventadas', async () => {
+  const legacy = await Event.create({ ...input, createdBy: admin.id, updatedBy: admin.id });
+  expect((await call('get', `/${legacy.id}`)).body.data).toMatchObject({ address: null, geo: null, locationSource: null });
+  const edited = await call('patch', `/${legacy.id}`).send({ title: 'Evento antigo atualizado', location: 'Recinto antigo' });
+  expect(edited.body.data).toMatchObject({ location: 'Recinto antigo', address: null, geo: null });
+  const located = await call('patch', `/${legacy.id}`).send(eventLocationInput);
+  expect(located.status).toBe(200);
+  expect(located.body.data).toMatchObject(eventLocation('Recinto antigo'));
+});
+
+it('recusa freguesias sem ponto e catálogos indisponíveis sem alterar o evento', async () => {
+  const created = (await call('post').send(input)).body.data;
+  await mongoose.connection.db.collection('parishes').updateOne({ code: '040701' }, { $unset: { latitude: '' } });
+  const invalid = await call('patch', `/${created.id}`).send({ ...eventLocationInput, title: 'Não gravar' });
+  expect(invalid.status).toBe(422);
+  expect(invalid.body.error).toMatchObject({ code: 'PARISH_POINT_UNAVAILABLE', details: [{ field: 'parishCode' }] });
+  await mongoose.connection.db.collection('referenceDatasets').deleteMany({});
+  expect((await call('post').send(input)).status).toBe(503);
+  expect((await call('patch', `/${created.id}`).send(eventLocationInput)).status).toBe(503);
+  expect((await call('get', `/${created.id}`)).body.data).toEqual(created);
+  expect(await Event.countDocuments()).toBe(1);
+});
+
+it('disponibiliza os catálogos através das rotas protegidas do backoffice', async () => {
+  for (const path of ['/municipalities', '/parishes?municipalityCode=0407']) {
+    const route = `/api/v1/admin/locations${path}`;
+    expect((await request(app).get(route).set(headers)).status).toBe(401);
+    expect((await request(app).get(route).set('Cookie', cookie)).status).toBe(403);
+    const result = await request(app).get(route).set(headers).set('Cookie', cookie);
+    expect(result.status).toBe(200);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.body.data.items).toHaveLength(2);
+    if (path.startsWith('/parishes')) expect(result.body.data.items.every(item => item.municipalityCode === '0407')).toBe(true);
+  }
+});
 
 it('guarda a foto no MongoDB, preserva em edições e permite substituir, limpar e eliminar', async () => {
   const created = await call('post').field('data', JSON.stringify(input)).attach('image', await photo('#ffaa00'), 'evento.png');

@@ -11,6 +11,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import adminRecipeRoutes from './adminRecipeRoutes.js';
 import adminEventRoutes from './adminEventRoutes.js';
+import locationRoutes from './locationRoutes.js';
 
 const router = Router();
 const ok = (res, data) => res.json({ success: true, data });
@@ -38,6 +39,7 @@ router.post('/auth/logout', asyncHandler(async (req, res) => {
   ok(res, null);
 }));
 router.use(authenticateAdmin);
+router.use('/locations', locationRoutes);
 router.use('/recipes', adminRecipeRoutes);
 router.use('/events', adminEventRoutes);
 router.get('/auth/me', (req, res) => ok(res, { admin: adminSummary(req.admin) }));

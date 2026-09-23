@@ -8,11 +8,12 @@ import { app } from '../src/app.js';
 import { Admin } from '../src/models/Admin.js';
 import { AdminSession } from '../src/models/AdminSession.js';
 import { Event } from '../src/models/Event.js';
+import { eventLocationInput, eventLocation, seedEventLocations } from './fixtures/eventLocations.js';
 
 let mongo, admin, cookie, passwordHash;
 const headers = { Origin: 'http://localhost:5173', 'X-Figo-Backoffice': '1' };
 const input = { title: 'Feira do backoffice', description: 'Produtos locais e encontros com produtores.', type: 'Feira',
-  date: '2026-09-27', startTime: '09:00', endTime: '18:00', location: 'Chaves', distanceKm: 1.4, free: true };
+  date: '2026-09-27', startTime: '09:00', endTime: '18:00', location: 'Chaves', distanceKm: 1.4, free: true, ...eventLocationInput };
 const adminCall = (method, path = '') => request(app)[method](`/api/v1/admin/events${path}`).set(headers).set('Cookie', cookie);
 const list = query => request(app).get(`/api/v1/events${query || ''}`);
 const detail = id => request(app).get(`/api/v1/events/${id}`);
@@ -24,6 +25,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => {
+  await seedEventLocations();
   await Promise.all([Event, Admin, AdminSession].map(model => model.deleteMany({})));
   admin = await Admin.create({ name: 'Editor de eventos', email: 'editor@figo.test', passwordHash });
   const login = await request(app).post('/api/v1/admin/auth/login').set(headers).send({ email: admin.email, password: 'Public-event-test-2026' });
@@ -41,7 +43,8 @@ it('reflete criação, edição e eliminação do backoffice na lista e detalhe 
   const created = await adminCall('post').send(input);
   expect(created.status).toBe(201);
   const id = created.body.data.id;
-  const expected = { id, ...input, image: null };
+  const { municipalityCode, parishCode, ...editorialFields } = input;
+  const expected = { id, ...editorialFields, ...eventLocation(input.location), image: null };
   expect((await list()).body.data.items).toEqual([expected]);
   const first = await detail(id);
   expect(first.status).toBe(200);
@@ -75,6 +78,7 @@ it('ordena por data/hora/id, pagina todos os resultados e filtra antes de pagina
   expect((await list('?from=2026-10-04&to=2026-10-04&free=false')).body.data.items.map(item => item.title)).toEqual(['Evento 1']);
   expect((await list('?to=2026-09-26')).body.data.items).toEqual([]);
   expect((await list('?from=2026-10-05')).body.data.items).toEqual([]);
+  expect(first.items[0]).toMatchObject({ address: null, geo: null, locationSource: null });
 });
 
 it.each(['page=0', 'page=1.5', 'limit=101', 'type=Outro', 'free=1', 'from=2026-02-30', 'to=2026-09-01&from=2026-09-02', 'createdBy=x', 'date[$ne]=x'])('rejeita parâmetros inválidos: %s', async query => {

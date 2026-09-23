@@ -94,7 +94,7 @@ it('apresenta eventos reais, navega por id, filtra e permite atualizar, paginar 
   expect(card().props.event).toBe(fullEvent);
   card().props.onPress();
   expect(navigation.navigate).toHaveBeenCalledExactlyOnceWith('EventDetailScreen', { eventId: 'event' });
-  expect(JSON.stringify(hook.value)).not.toMatch(/demonstração|fictícios|Próximos de ti/);
+  expect(JSON.stringify(hook.value)).not.toMatch(/demonstração|fictícios|Próximos de ti|Agenda local|Mercados, feiras e encontros com produtores locais/);
   nodes(hook.value).find(node => node.type === 'Chip' && node.props.label === 'Feiras').props.onPress();
   hook.update([{ navigation }]);
   expect(useEvents).toHaveBeenLastCalledWith('Feiras');
@@ -146,13 +146,31 @@ it('ignora detalhes atrasados de outro evento ou depois de sair do ecrã', async
 
 it('mostra descrição e dados completos no detalhe e ações para falhas ou eventos eliminados', () => {
   const state = { event: fullEvent, busy: false, error: '', notFound: false, retry: vi.fn() };
+  const directions = { open: vi.fn(), pending: false, error: '', chooseOrigin: false };
   const navigation = { goBack: vi.fn() }; const args = [{ route: { params: { eventId: 'event' } }, navigation }];
-  const hook = mountClient('src/screens/events/EventDetailScreen.js', args, { '../../hooks/useEvent': { default: () => state } });
+  const hook = mountClient('src/screens/events/EventDetailScreen.js', args, {
+    '../../hooks/useEvent': { default: () => state },
+    '../../hooks/useEventDirections': { default: () => directions }
+  });
   const text = () => nodes(hook.value).filter(node => node.type === 'Text').map(node => node.props.children);
   expect(text()).toEqual(expect.arrayContaining([fullEvent.title, fullEvent.description, fullEvent.type, 'domingo, 27 de setembro de 2026']));
   expect(nodes(hook.value).some(node => node.props.event === fullEvent)).toBe(true);
   expect(nodes(hook.value).some(node => node.props.image === fullEvent.image)).toBe(true);
   expect(hook.value.props.children[0].type).toBe('EventPoster');
+  const directionButton = () => nodes(hook.value).find(node => node.type === 'EventMeta').props.locationAction;
+  expect(directionButton().props.disabled).toBe(true);
+  state.event = { ...fullEvent, geo: { type: 'Point', coordinates: [-7.18, 41.48] }, locationSource: 'parish' };
+  hook.update(args);
+  expect(directionButton().props.disabled).toBe(false);
+  expect(text().some(value => typeof value === 'string' && value.includes('destino é aproximado'))).toBe(true);
+  directionButton().props.onPress();
+  expect(directions.open).toHaveBeenLastCalledWith(state.event);
+  directions.pending = true; hook.update(args);
+  expect(directionButton().props.accessibilityState.busy).toBe(true);
+  directions.pending = false; directions.chooseOrigin = true; directions.error = 'Localização indisponível'; hook.update(args);
+  expect(text()).toContain('Localização indisponível');
+  nodes(hook.value).find(node => node.type === 'Button' && node.props.title === 'Definir origem no mapa').props.onPress();
+  expect(directions.open).toHaveBeenLastCalledWith(state.event, { chooseOrigin: true });
   state.event = null; state.error = 'Sem rede'; hook.update(args);
   let empty = nodes(hook.value).find(node => node.type === 'EmptyState');
   expect(empty.props.actionLabel).toBe('Tentar novamente'); empty.props.onAction(); expect(state.retry).toHaveBeenCalledOnce();

@@ -1,11 +1,12 @@
-import { Event } from '../models/Event.js';
+import { Event, eventLocationSummary } from '../models/Event.js';
 import { AppError } from '../utils/AppError.js';
 
-const publicFields = 'title description type date startTime endTime location distanceKm free image imageVersion';
+const publicFields = 'title description type date startTime endTime location address geo locationSource distanceKm free image imageVersion';
 const summary = event => ({
   id: event._id.toString(), title: event.title, description: event.description,
   type: event.type, date: event.date, startTime: event.startTime, endTime: event.endTime,
   location: event.location, distanceKm: event.distanceKm, free: event.free,
+  ...eventLocationSummary(event),
   image: event.imageVersion ? `/api/v1/events/${event._id}/image?v=${encodeURIComponent(event.imageVersion)}` : event.image ?? null
 });
 
